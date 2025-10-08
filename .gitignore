@@ -120,3 +120,4 @@ local.settings.json
 
 # Application settings (sensitive configuration)
 appsettings*.json
+tests/MAF.InsightStreamer.Infrastructure.Tests/.microsoft/usersecrets/secrets.json
