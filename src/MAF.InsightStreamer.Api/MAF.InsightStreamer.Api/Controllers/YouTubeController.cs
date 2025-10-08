@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using MAF.InsightStreamer.Application.Interfaces;
 using MAF.InsightStreamer.Infrastructure.Providers;
 
 namespace MAF.InsightStreamer.Api.Controllers;
@@ -9,10 +10,12 @@ namespace MAF.InsightStreamer.Api.Controllers;
 public class YouTubeController : ControllerBase
 {
     private readonly ProviderSettings _providerSettings;
+    private readonly IVideoOrchestratorService _orchestrator;
 
-    public YouTubeController(IOptions<ProviderSettings> providerSettings)
+    public YouTubeController(IOptions<ProviderSettings> providerSettings, IVideoOrchestratorService orchestrator)
     {
         _providerSettings = providerSettings.Value;
+        _orchestrator = orchestrator;
     }
 
     /// <summary>
@@ -60,5 +63,15 @@ public class YouTubeController : ControllerBase
         {
             return StatusCode(500, new { error = ex.Message });
         }
+    }
+
+    /// <summary>
+    /// Extract video content using the video orchestrator service
+    /// </summary>
+    [HttpPost("extract")]
+    public async Task<IActionResult> ExtractVideo([FromBody] string videoUrl)
+    {
+        var result = await _orchestrator.RunAsync($"Extract the video: {videoUrl}");
+        return Ok(result);
     }
 }
