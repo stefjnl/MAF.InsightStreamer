@@ -4,3 +4,10 @@ GET {{MAF.InsightStreamer.Api_HostAddress}}/weatherforecast/
 Accept: application/json
 
 ###
+
+POST {{MAF.InsightStreamer.Api_HostAddress}}/api/YouTube/test
+Content-Type: application/json
+
+"test input for YouTube orchestrator"
+
+###
