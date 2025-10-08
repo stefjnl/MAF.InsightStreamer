@@ -1,0 +1,6 @@
+@MAF.InsightStreamer.Api_HostAddress = http://localhost:5232
+
+GET {{MAF.InsightStreamer.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
