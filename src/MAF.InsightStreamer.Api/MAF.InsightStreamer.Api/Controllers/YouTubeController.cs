@@ -12,7 +12,9 @@ public class YouTubeController : ControllerBase
     private readonly ProviderSettings _providerSettings;
     private readonly IVideoOrchestratorService _orchestrator;
 
-    public YouTubeController(IOptions<ProviderSettings> providerSettings, IVideoOrchestratorService orchestrator)
+    public YouTubeController(
+        IOptions<ProviderSettings> providerSettings,
+        IVideoOrchestratorService orchestrator)
     {
         _providerSettings = providerSettings.Value;
         _orchestrator = orchestrator;
@@ -26,7 +28,6 @@ public class YouTubeController : ControllerBase
     {
         try
         {
-            // Return simple response for testing
             return Ok(new { response = "Hello from YT controller" });
         }
         catch (Exception ex)
@@ -43,7 +44,6 @@ public class YouTubeController : ControllerBase
     {
         try
         {
-            // Test that configuration is properly bound and reading from user secrets
             var configInfo = new
             {
                 ApiKeyPrefix = _providerSettings.ApiKey?.Substring(0, Math.Min(10, _providerSettings.ApiKey?.Length ?? 0)) + "...",
@@ -71,7 +71,14 @@ public class YouTubeController : ControllerBase
     [HttpPost("extract")]
     public async Task<IActionResult> ExtractVideo([FromBody] string videoUrl)
     {
-        var result = await _orchestrator.RunAsync($"Extract the video: {videoUrl}");
-        return Ok(result);
+        try
+        {
+            var result = await _orchestrator.RunAsync($"Extract the video: {videoUrl}");
+            return Ok(new { response = result });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = ex.Message });
+        }
     }
 }

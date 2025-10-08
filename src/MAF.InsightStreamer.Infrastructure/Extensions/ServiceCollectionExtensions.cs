@@ -4,7 +4,6 @@ using MAF.InsightStreamer.Infrastructure.Providers;
 using MAF.InsightStreamer.Application.Interfaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 
 namespace MAF.InsightStreamer.Infrastructure.Extensions;
 
@@ -18,20 +17,16 @@ public static class ServiceCollectionExtensions
         services.Configure<ProviderSettings>(
             configuration.GetSection(ProviderSettings.SectionName));
 
-        // Register YouTube service as singleton to match orchestrator lifetime
-        services.AddSingleton<IYouTubeService, YouTubeService>();
+        // Register services with proper lifetimes
+        services.AddScoped<IYouTubeService, YouTubeService>();
 
-        // Register orchestrator as singleton because agent is stateful
-        services.AddSingleton<IVideoOrchestratorService>(sp => {
-            var settings = sp.GetRequiredService<IOptions<ProviderSettings>>().Value;
-            var youtubeService = sp.GetRequiredService<IYouTubeService>();
-            return new VideoOrchestratorService(settings.ApiKey, settings.Model, settings.Endpoint, youtubeService);
-        });
+        // Register orchestrator as singleton - DI will handle dependencies
+        services.AddSingleton<IVideoOrchestratorService, VideoOrchestratorService>();
 
         // Register other services (when implemented)
-        // services.AddScoped<ChunkingService>();
+        // services.AddScoped<IChunkingService, ChunkingService>();
         // services.AddMemoryCache();
-        // services.AddScoped<VideoCacheService>();
+        // services.AddScoped<IVideoCacheService, VideoCacheService>();
 
         return services;
     }

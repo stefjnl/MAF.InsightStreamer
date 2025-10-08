@@ -1,9 +1,11 @@
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Options;
 using OpenAI.Chat;
 using System.ClientModel;
 using System.ComponentModel;
 using MAF.InsightStreamer.Application.Interfaces;
+using MAF.InsightStreamer.Infrastructure.Providers;
 
 namespace MAF.InsightStreamer.Infrastructure.Orchestration;
 
@@ -12,16 +14,20 @@ public class VideoOrchestratorService : IVideoOrchestratorService
     private readonly AIAgent _orchestrator;
     private readonly IYouTubeService _youtubeService;
 
-    public VideoOrchestratorService(string apiKey, string model, string endpoint, IYouTubeService youtubeService)
+    public VideoOrchestratorService(
+        IOptions<ProviderSettings> settings,
+        IYouTubeService youtubeService)
     {
-        _youtubeService = youtubeService;
-        
+        _youtubeService = youtubeService ?? throw new ArgumentNullException(nameof(youtubeService));
+
+        var config = settings?.Value ?? throw new ArgumentNullException(nameof(settings));
+
         ChatClient chatClient = new(
-            model: model,
-            credential: new ApiKeyCredential(apiKey),
+            model: config.Model,
+            credential: new ApiKeyCredential(config.ApiKey),
             options: new OpenAI.OpenAIClientOptions
             {
-                Endpoint = new Uri(endpoint)
+                Endpoint = new Uri(config.Endpoint)
             }
         );
 
@@ -56,7 +62,7 @@ public class VideoOrchestratorService : IVideoOrchestratorService
         {
             var metadata = await _youtubeService.GetVideoMetadataAsync(videoUrl);
             var transcript = await _youtubeService.GetTranscriptAsync(videoUrl);
-            
+
             // Store in cache (future implementation)
             // Return structured summary for LLM
             return $"Extracted video: {metadata.Title} by {metadata.Author}. " +

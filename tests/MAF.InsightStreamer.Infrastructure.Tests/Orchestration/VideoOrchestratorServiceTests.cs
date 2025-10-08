@@ -1,9 +1,9 @@
 using MAF.InsightStreamer.Application.Interfaces;
 using MAF.InsightStreamer.Domain.Models;
 using MAF.InsightStreamer.Infrastructure.Orchestration;
+using MAF.InsightStreamer.Infrastructure.Providers;
 using MAF.InsightStreamer.Infrastructure.Services;
-using Microsoft.Agents.AI;
-using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Options;
 using Moq;
 using System;
 using System.Collections.Generic;
@@ -15,18 +15,25 @@ namespace MAF.InsightStreamer.Infrastructure.Tests.Orchestration;
 public class VideoOrchestratorServiceTests
 {
     private readonly Mock<IYouTubeService> _mockYouTubeService;
+    private readonly Mock<IOptions<ProviderSettings>> _mockSettings;
     private readonly VideoOrchestratorService _service;
 
     public VideoOrchestratorServiceTests()
     {
         _mockYouTubeService = new Mock<IYouTubeService>();
 
-        // Use test API key and configuration
-        const string testApiKey = "test-api-key";
-        const string testModel = "gpt-3.5-turbo";
-        const string testEndpoint = "https://openrouter.ai/api/v1";
+        // Setup mock settings
+        var testSettings = new ProviderSettings
+        {
+            ApiKey = "test-api-key",
+            Model = "gpt-3.5-turbo",
+            Endpoint = "https://openrouter.ai/api/v1"
+        };
 
-        _service = new VideoOrchestratorService(testApiKey, testModel, testEndpoint, _mockYouTubeService.Object);
+        _mockSettings = new Mock<IOptions<ProviderSettings>>();
+        _mockSettings.Setup(s => s.Value).Returns(testSettings);
+
+        _service = new VideoOrchestratorService(_mockSettings.Object, _mockYouTubeService.Object);
     }
 
     [Fact]
@@ -126,15 +133,6 @@ public class VideoOrchestratorServiceTests
     {
         // Arrange
         const string input = "Extract video from https://www.youtube.com/watch?v=test123";
-
-        // Note: This test would require setting up the AI agent which is complex for unit testing
-        // In a real scenario, you would need to either:
-        // 1. Extract the AI agent creation to a factory for better testability
-        // 2. Use integration tests instead of unit tests for this functionality
-        // 3. Mock the ChatClient instead of the AIAgent
-
-        // For now, we'll skip this test as it requires significant refactoring
-        // to make the VideoOrchestratorService more testable
 
         // Act & Assert - We expect this to fail with API authentication since we're using a test key
         var exception = await Assert.ThrowsAsync<System.ClientModel.ClientResultException>(() =>
