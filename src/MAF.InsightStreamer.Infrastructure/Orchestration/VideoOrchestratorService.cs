@@ -20,7 +20,7 @@ public class VideoOrchestratorService
             }
         );
 
-        IChatClient client = chatClient.AsIChatClient();
+        IChatClient client = (IChatClient)chatClient;
 
         _orchestrator = new ChatClientAgent(
             client,
