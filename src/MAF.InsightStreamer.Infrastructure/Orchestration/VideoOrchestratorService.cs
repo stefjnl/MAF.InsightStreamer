@@ -47,6 +47,11 @@ public class VideoOrchestratorService : IVideoOrchestratorService
     public async Task<string> ExtractYouTubeVideo(
         [Description("The YouTube video URL to extract")] string videoUrl)
     {
+        if (string.IsNullOrWhiteSpace(videoUrl))
+        {
+            throw new ArgumentException("Video URL cannot be null or empty", nameof(videoUrl));
+        }
+
         try
         {
             var metadata = await _youtubeService.GetVideoMetadataAsync(videoUrl);
