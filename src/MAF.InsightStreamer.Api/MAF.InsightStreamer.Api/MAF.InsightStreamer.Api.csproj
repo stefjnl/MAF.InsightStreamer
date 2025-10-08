@@ -12,8 +12,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\MAF.InsightStreamer.ServiceDefaults\MAF.InsightStreamer.ServiceDefaults\MAF.InsightStreamer.ServiceDefaults.csproj" />
-    <ProjectReference Include="..\..\MAF.InsightStreamer.Application\MAF.InsightStreamer.Application\MAF.InsightStreamer.Application.csproj" />
-    <ProjectReference Include="..\..\MAF.InsightStreamer.Infrastructure\MAF.InsightStreamer.Infrastructure\MAF.InsightStreamer.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\MAF.InsightStreamer.Application\MAF.InsightStreamer.Application.csproj" />
+    <ProjectReference Include="..\..\MAF.InsightStreamer.Infrastructure\MAF.InsightStreamer.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

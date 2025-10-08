@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\MAF.InsightStreamer.Domain\MAF.InsightStreamer.Domain\MAF.InsightStreamer.Domain.csproj" />
+    <ProjectReference Include="..\MAF.InsightStreamer.Domain\MAF.InsightStreamer.Domain.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

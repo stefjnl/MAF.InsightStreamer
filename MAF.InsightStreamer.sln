@@ -17,15 +17,15 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MAF.InsightStreamer.Api", "
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "MAF.InsightStreamer.Application", "MAF.InsightStreamer.Application", "{CB7D10D8-97C3-4E16-8098-A5F05563E5C3}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MAF.InsightStreamer.Application", "src\MAF.InsightStreamer.Application\MAF.InsightStreamer.Application\MAF.InsightStreamer.Application.csproj", "{905A4A52-1430-4F93-8CC9-FF1D7A3A41C6}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MAF.InsightStreamer.Application", "src\MAF.InsightStreamer.Application\MAF.InsightStreamer.Application.csproj", "{905A4A52-1430-4F93-8CC9-FF1D7A3A41C6}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "MAF.InsightStreamer.Domain", "MAF.InsightStreamer.Domain", "{76F3F018-BB66-D0DD-456B-539295478C9D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MAF.InsightStreamer.Domain", "src\MAF.InsightStreamer.Domain\MAF.InsightStreamer.Domain\MAF.InsightStreamer.Domain.csproj", "{5EF29C0B-A79C-483E-BA61-A589DEBD967D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MAF.InsightStreamer.Domain", "src\MAF.InsightStreamer.Domain\MAF.InsightStreamer.Domain.csproj", "{5EF29C0B-A79C-483E-BA61-A589DEBD967D}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "MAF.InsightStreamer.Infrastructure", "MAF.InsightStreamer.Infrastructure", "{F89B966A-9267-E3B2-9886-8A53EA479F16}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MAF.InsightStreamer.Infrastructure", "src\MAF.InsightStreamer.Infrastructure\MAF.InsightStreamer.Infrastructure\MAF.InsightStreamer.Infrastructure.csproj", "{CA1217F1-1808-4E06-9479-31A00D764BB4}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MAF.InsightStreamer.Infrastructure", "src\MAF.InsightStreamer.Infrastructure\MAF.InsightStreamer.Infrastructure.csproj", "{CA1217F1-1808-4E06-9479-31A00D764BB4}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
