@@ -8,6 +8,7 @@ namespace MAF.InsightStreamer.Infrastructure.Orchestration;
 public class VideoOrchestratorService
 {
     private readonly AIAgent _orchestrator;
+
     public VideoOrchestratorService(string apiKey, string model, string endpoint)
     {
         ChatClient chatClient = new(
@@ -18,7 +19,9 @@ public class VideoOrchestratorService
                 Endpoint = new Uri(endpoint)
             }
         );
-        IChatClient client = (IChatClient)chatClient;
+
+        IChatClient client = chatClient.AsIChatClient();
+
         _orchestrator = new ChatClientAgent(
             client,
             new ChatClientAgentOptions
@@ -36,6 +39,7 @@ public class VideoOrchestratorService
             }
         );
     }
+
     public async Task<string> RunAsync(string input)
     {
         AgentRunResponse response = await _orchestrator.RunAsync(input);
