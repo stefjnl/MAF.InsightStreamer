@@ -1,6 +1,11 @@
 using MAF.InsightStreamer.Infrastructure.Extensions;
+using MAF.InsightStreamer.Infrastructure.Providers;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Bind configuration using Options pattern
+builder.Services.Configure<ProviderSettings>(
+    builder.Configuration.GetSection(ProviderSettings.SectionName));
 
 // Add services to the container
 builder.Services.AddControllers();

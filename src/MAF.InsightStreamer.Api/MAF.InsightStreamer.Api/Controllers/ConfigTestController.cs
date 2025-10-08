@@ -6,37 +6,20 @@ namespace MAF.InsightStreamer.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class YouTubeController : ControllerBase
+public class ConfigTestController : ControllerBase
 {
     private readonly ProviderSettings _providerSettings;
 
-    public YouTubeController(IOptions<ProviderSettings> providerSettings)
+    public ConfigTestController(IOptions<ProviderSettings> providerSettings)
     {
         _providerSettings = providerSettings.Value;
     }
 
     /// <summary>
-    /// Test endpoint to verify controller is working
-    /// </summary>
-    [HttpPost("test")]
-    public IActionResult Test([FromBody] string input)
-    {
-        try
-        {
-            // Return simple response for testing
-            return Ok(new { response = "Hello from YT controller" });
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new { error = ex.Message });
-        }
-    }
-
-    /// <summary>
     /// Test endpoint to verify configuration binding from user secrets
     /// </summary>
-    [HttpGet("config-test")]
-    public IActionResult ConfigTest()
+    [HttpGet("test")]
+    public IActionResult TestConfiguration()
     {
         try
         {
