@@ -26,7 +26,7 @@ public class VideoOrchestratorServiceTests
         var testSettings = new ProviderSettings
         {
             ApiKey = "test-api-key",
-            Model = "gpt-3.5-turbo",
+            Model = "google/gemini-2.5-flash-lite-preview-09-2025",
             Endpoint = "https://openrouter.ai/api/v1"
         };
 
