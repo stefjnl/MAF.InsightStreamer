@@ -19,12 +19,12 @@ public static class ServiceCollectionExtensions
 
         // Register services with proper lifetimes
         services.AddScoped<IYouTubeService, YouTubeService>();
+        services.AddScoped<IChunkingService, ChunkingService>();
 
         // Register orchestrator as singleton - DI will handle dependencies
         services.AddSingleton<IVideoOrchestratorService, VideoOrchestratorService>();
 
         // Register other services (when implemented)
-        // services.AddScoped<IChunkingService, ChunkingService>();
         // services.AddMemoryCache();
         // services.AddScoped<IVideoCacheService, VideoCacheService>();
 

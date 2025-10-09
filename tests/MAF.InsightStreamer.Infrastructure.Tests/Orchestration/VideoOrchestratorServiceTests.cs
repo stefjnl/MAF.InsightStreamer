@@ -15,12 +15,14 @@ namespace MAF.InsightStreamer.Infrastructure.Tests.Orchestration;
 public class VideoOrchestratorServiceTests
 {
     private readonly Mock<IYouTubeService> _mockYouTubeService;
+    private readonly Mock<IChunkingService> _mockChunkingService;
     private readonly Mock<IOptions<ProviderSettings>> _mockSettings;
     private readonly VideoOrchestratorService _service;
 
     public VideoOrchestratorServiceTests()
     {
         _mockYouTubeService = new Mock<IYouTubeService>();
+        _mockChunkingService = new Mock<IChunkingService>();
 
         // Setup mock settings
         var testSettings = new ProviderSettings
@@ -33,7 +35,7 @@ public class VideoOrchestratorServiceTests
         _mockSettings = new Mock<IOptions<ProviderSettings>>();
         _mockSettings.Setup(s => s.Value).Returns(testSettings);
 
-        _service = new VideoOrchestratorService(_mockSettings.Object, _mockYouTubeService.Object);
+        _service = new VideoOrchestratorService(_mockSettings.Object, _mockYouTubeService.Object, _mockChunkingService.Object);
     }
 
     [Fact]
@@ -166,5 +168,69 @@ public class VideoOrchestratorServiceTests
 
         // Assert
         Assert.Contains("Error extracting video: No transcript available", result);
+    }
+    [Fact]
+    public async Task ChunkTranscriptForAnalysis_ValidUrl_ReturnsChunkSummary()
+    {
+        // Arrange
+        const string videoUrl = "https://www.youtube.com/watch?v=test123";
+        var metadata = new VideoMetadata
+        {
+            VideoId = "test123",
+            Title = "Test Video",
+            Author = "Test Author",
+            Duration = TimeSpan.FromMinutes(10),
+            ThumbnailUrl = "https://example.com/thumb.jpg"
+        };
+
+        var transcript = new List<TranscriptChunk>
+        {
+            new TranscriptChunk
+            {
+                ChunkIndex = 0,
+                Text = "Hello world this is a test transcript",
+                StartTimeSeconds = 0,
+                EndTimeSeconds = 5
+            },
+            new TranscriptChunk
+            {
+                ChunkIndex = 1,
+                Text = "With another segment for chunking",
+                StartTimeSeconds = 5,
+                EndTimeSeconds = 10
+            }
+        };
+
+        var chunks = new List<TranscriptChunk>
+        {
+            new TranscriptChunk
+            {
+                ChunkIndex = 0,
+                Text = "Hello world this is a test transcript With another segment for chunking",
+                StartTimeSeconds = 0,
+                EndTimeSeconds = 10
+            }
+        };
+
+        _mockYouTubeService.Setup(s => s.GetVideoMetadataAsync(videoUrl))
+            .ReturnsAsync(metadata);
+        _mockYouTubeService.Setup(s => s.GetTranscriptAsync(videoUrl, "en"))
+            .ReturnsAsync(transcript);
+        _mockChunkingService.Setup(s => s.ChunkTranscriptAsync(transcript, 4000, 400))
+            .ReturnsAsync(chunks);
+
+        // Act
+        var result = await _service.ChunkTranscriptForAnalysis(videoUrl, 4000, 400);
+
+        // Assert
+        Assert.Contains("Successfully chunked video 'Test Video'", result);
+        Assert.Contains("Duration: 00:10:00", result);
+        Assert.Contains("Generated 1 chunks from 2 original segments", result);
+        Assert.Contains("Total characters: 71", result); // "Hello world this is a test transcript With another segment for chunking".Length
+        Assert.Contains("Chunk size: 4000 chars, Overlap: 400 chars", result);
+        Assert.Contains("First chunk preview: Hello world this is a test transcript With another segment for chunking...", result);
+        _mockYouTubeService.Verify(s => s.GetVideoMetadataAsync(videoUrl), Times.Once);
+        _mockYouTubeService.Verify(s => s.GetTranscriptAsync(videoUrl, "en"), Times.Once);
+        _mockChunkingService.Verify(s => s.ChunkTranscriptAsync(transcript, 4000, 400), Times.Once);
     }
 }
