@@ -13,6 +13,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+	<PackageReference Include="Google.Apis.YouTube.v3" Version="1.70.0.3847" />
 	<PackageReference Include="Microsoft.Agents.AI" Version="1.0.0-preview.251001.2" />
     <PackageReference Include="Microsoft.Extensions.AI" Version="9.9.1" />
     <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="9.9.1-preview.1.25474.6" />

@@ -35,7 +35,8 @@ public class VideoOrchestratorServiceTests
         {
             ApiKey = "test-key", // This will be overridden by user secrets if available
             Model = "google/gemini-2.5-flash-lite-preview-09-2025", // Real model from appsettings.json
-            Endpoint = "https://openrouter.ai/api/v1" // Real OpenRouter endpoint
+            Endpoint = "https://openrouter.ai/api/v1", // Real OpenRouter endpoint
+            YouTubeApiKey = "test-youtube-api-key" // Test YouTube API key
         };
         configuration.GetSection("OpenRouter").Bind(settings);
 
