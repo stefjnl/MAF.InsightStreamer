@@ -1,4 +1,4 @@
-@MAF.InsightStreamer.Api_HostAddress = http://localhost:5232
+@MAF.InsightStreamer.Api_HostAddress = https://localhost:7276
 
 GET {{MAF.InsightStreamer.Api_HostAddress}}/weatherforecast/
 Accept: application/json
@@ -10,4 +10,12 @@ Content-Type: application/json
 
 "test input for YouTube orchestrator"
 
+###
+
+POST {{MAF.InsightStreamer.Api_HostAddress}}/api/YouTube/summarize
+Content-Type: application/json
+
+"https://www.youtube.com/watch?v=awztkr8n0AA"
+
+###
 ###
