@@ -2,11 +2,16 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.ServiceDiscovery;
 using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
+using Polly;
+using Polly.Retry;
+using Polly.CircuitBreaker;
+using System.Net;
 
 namespace Microsoft.Extensions.Hosting;
 
@@ -25,8 +30,44 @@ public static class Extensions
 
         builder.Services.ConfigureHttpClientDefaults(http =>
         {
-            // Turn on resilience by default
-            http.AddStandardResilienceHandler();
+            // Configure custom resilience handler with less aggressive retry policy
+            http.AddResilienceHandler("custom", builder =>
+            {
+                // Add retry policy with reduced attempts and specific conditions
+                builder.AddRetry(new HttpRetryStrategyOptions
+                {
+                    // Reduce retry attempts from default 4 to 2
+                    MaxRetryAttempts = 2,
+                    
+                    // Use exponential backoff
+                    Delay = TimeSpan.FromSeconds(1),
+                    BackoffType = DelayBackoffType.Exponential,
+                    
+                    // Only retry on transient failures (5xx status codes and network failures)
+                    ShouldHandle = static args => ValueTask.FromResult(args.Outcome.Result?.StatusCode is null or
+                        HttpStatusCode.InternalServerError or
+                        HttpStatusCode.BadGateway or
+                        HttpStatusCode.GatewayTimeout or
+                        HttpStatusCode.ServiceUnavailable or
+                        HttpStatusCode.RequestTimeout)
+                });
+
+                // Add circuit breaker to prevent cascading failures
+                builder.AddCircuitBreaker(new HttpCircuitBreakerStrategyOptions
+                {
+                    // Break when 50% of requests fail
+                    FailureRatio = 0.5,
+                    
+                    // Need at least 3 requests before breaking
+                    MinimumThroughput = 3,
+                    
+                    // Break for 30 seconds
+                    SamplingDuration = TimeSpan.FromSeconds(30)
+                });
+
+                // Add timeout policy to prevent long-running requests
+                builder.AddTimeout(TimeSpan.FromSeconds(120));
+            });
 
             // Turn on service discovery by default
             http.AddServiceDiscovery();

@@ -17,8 +17,10 @@ public static class ServiceCollectionExtensions
         services.Configure<ProviderSettings>(
             configuration.GetSection(ProviderSettings.SectionName));
 
+        // Register HttpClient for YouTubeService
+        services.AddHttpClient<IYouTubeService, YouTubeService>();
+
         // Register services with proper lifetimes
-        services.AddScoped<IYouTubeService, YouTubeService>();
         services.AddScoped<IChunkingService, ChunkingService>();
 
         // Register orchestrator as scoped - depends on scoped services

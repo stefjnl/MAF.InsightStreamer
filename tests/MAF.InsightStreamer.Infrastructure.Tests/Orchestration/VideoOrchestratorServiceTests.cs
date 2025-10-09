@@ -4,6 +4,7 @@ using MAF.InsightStreamer.Infrastructure.Orchestration;
 using MAF.InsightStreamer.Infrastructure.Providers;
 using MAF.InsightStreamer.Infrastructure.Services;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 using System;
@@ -18,12 +19,14 @@ public class VideoOrchestratorServiceTests
     private readonly Mock<IYouTubeService> _mockYouTubeService;
     private readonly Mock<IChunkingService> _mockChunkingService;
     private readonly Mock<IOptions<ProviderSettings>> _mockSettings;
+    private readonly Mock<ILogger<VideoOrchestratorService>> _mockLogger;
     private readonly VideoOrchestratorService _service;
 
     public VideoOrchestratorServiceTests()
     {
         _mockYouTubeService = new Mock<IYouTubeService>();
         _mockChunkingService = new Mock<IChunkingService>();
+        _mockLogger = new Mock<ILogger<VideoOrchestratorService>>();
 
         // Setup configuration to use user secrets
         var configuration = new ConfigurationBuilder()
@@ -43,7 +46,7 @@ public class VideoOrchestratorServiceTests
         _mockSettings = new Mock<IOptions<ProviderSettings>>();
         _mockSettings.Setup(s => s.Value).Returns(settings);
 
-        _service = new VideoOrchestratorService(_mockSettings.Object, _mockYouTubeService.Object, _mockChunkingService.Object);
+        _service = new VideoOrchestratorService(_mockSettings.Object, _mockYouTubeService.Object, _mockChunkingService.Object, _mockLogger.Object);
     }
 
     [Fact]
