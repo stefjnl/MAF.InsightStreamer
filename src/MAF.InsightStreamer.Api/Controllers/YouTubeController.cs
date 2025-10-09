@@ -80,5 +80,21 @@ public class YouTubeController : ControllerBase
         {
             return StatusCode(500, new { error = ex.Message });
         }
+    /// <summary>
+    /// Summarize video content using the video orchestrator service
+    /// </summary>
+    [HttpPost("summarize")]
+    public async Task<IActionResult> Summarize([FromBody] string videoUrl)
+    {
+        try
+        {
+            var result = await _orchestrator.RunAsync($"Summarize this video: {videoUrl}");
+            return Ok(new { response = result });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = ex.Message });
+        }
+    }
     }
 }
