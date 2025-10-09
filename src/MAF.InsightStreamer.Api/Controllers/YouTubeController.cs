@@ -80,6 +80,8 @@ public class YouTubeController : ControllerBase
         {
             return StatusCode(500, new { error = ex.Message });
         }
+    }
+
     /// <summary>
     /// Summarize video content using the video orchestrator service
     /// </summary>
@@ -95,6 +97,5 @@ public class YouTubeController : ControllerBase
         {
             return StatusCode(500, new { error = ex.Message });
         }
-    }
     }
 }

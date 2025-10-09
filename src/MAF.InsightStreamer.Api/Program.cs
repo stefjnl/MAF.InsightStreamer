@@ -11,7 +11,7 @@ builder.Services.Configure<ProviderSettings>(
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
-builder.Services.AddInfrastructure(builder.Configuration);  
+builder.Services.AddInfrastructure(builder.Configuration);
 
 // Configure CORS for development
 builder.Services.AddCors(options =>
@@ -40,3 +40,5 @@ app.UseHttpsRedirection();
 app.MapControllers();
 
 app.Run();
+
+public partial class Program { }
