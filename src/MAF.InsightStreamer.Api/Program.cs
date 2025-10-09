@@ -3,6 +3,9 @@ using MAF.InsightStreamer.Infrastructure.Providers;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Add .NET Aspire service defaults
+builder.AddServiceDefaults();
+
 // Bind configuration using Options pattern
 builder.Services.Configure<ProviderSettings>(
     builder.Configuration.GetSection(ProviderSettings.SectionName));
@@ -37,7 +40,14 @@ app.UseCors("AllowAll");
 
 app.UseHttpsRedirection();
 
+// Enable static files serving - order matters!
+app.UseDefaultFiles();  // This should come before UseStaticFiles
+app.UseStaticFiles();
+
 app.MapControllers();
+
+// Map default endpoints for Aspire dashboard
+app.MapDefaultEndpoints();
 
 app.Run();
 
