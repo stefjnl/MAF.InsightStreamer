@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAF.InsightStreamer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="max-w-4xl mx-auto p-8">
+        <!-- Header -->
+        <header class="text-center mb-12">
+            <h1 class="text-4xl font-bold text-gray-900 mb-2">MAF.InsightStreamer</h1>
+            <p class="text-gray-600">AI-Powered YouTube Video Analysis</p>
+        </header>
+        
+        <!-- Input Section -->
+        <div class="bg-white shadow-md rounded-lg p-6 mb-8">
+            <label for="videoUrl" class="block text-sm font-medium text-gray-700 mb-2">
+                YouTube Video URL
+            </label>
+            <div class="flex gap-4">
+                <input 
+                    type="text" 
+                    id="videoUrl" 
+                    placeholder="https://www.youtube.com/watch?v=..." 
+                    class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <button 
+                    onclick="analyzeVideo()" 
+                    class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition font-medium"
+                >
+                    Analyze
+                </button>
+            </div>
+        </div>
+        
+        <!-- Loading Spinner -->
+        <div id="loading" class="hidden text-center py-8">
+            <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <p class="text-gray-600 mt-4">Analyzing video...</p>
+        </div>
+        
+        <!-- Error Message -->
+        <div id="error" class="hidden bg-red-50 border border-red-200 rounded-lg p-4 mb-8">
+            <p class="text-red-800" id="errorMessage"></p>
+        </div>
+        
+        <!-- Results Section -->
+        <div id="results" class="hidden bg-white shadow-lg rounded-lg p-6">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">Analysis Results</h2>
+            <div id="resultsContent" class="text-gray-700 whitespace-pre-wrap"></div>
+        </div>
+    </div>
+    
+    <script>
+        async function analyzeVideo() {
+            const url = document.getElementById('videoUrl').value;
+            
+            // Validate URL
+            if (!url || !url.includes('youtube.com') && !url.includes('youtu.be')) {
+                showError('Please enter a valid YouTube URL');
+                return;
+            }
+            
+            // Show loading, hide previous results
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('results').classList.add('hidden');
+            document.getElementById('error').classList.add('hidden');
+            
+            try {
+                const response = await fetch('/api/youtube/summarize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(url)
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(errorText || 'Analysis failed');
+                }
+                
+                const result = await response.text();
+                displayResults(result);
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                document.getElementById('loading').classList.add('hidden');
+            }
+        }
+
+        function displayResults(result) {
+            document.getElementById('resultsContent').textContent = result;
+            document.getElementById('results').classList.remove('hidden');
+        }
+
+        function showError(message) {
+            document.getElementById('errorMessage').textContent = message;
+            document.getElementById('error').classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
