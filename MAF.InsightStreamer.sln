@@ -13,7 +13,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "MAF.InsightStreamer.Api", "MAF.InsightStreamer.Api", "{872C04B9-7D64-343F-4FE1-E9931B7EE065}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MAF.InsightStreamer.Api", "src\MAF.InsightStreamer.Api\MAF.InsightStreamer.Api\MAF.InsightStreamer.Api.csproj", "{2CE42656-B5B5-4DE4-9C59-BA6580D850B5}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MAF.InsightStreamer.Api", "src\MAF.InsightStreamer.Api\MAF.InsightStreamer.Api.csproj", "{2CE42656-B5B5-4DE4-9C59-BA6580D850B5}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "MAF.InsightStreamer.Application", "MAF.InsightStreamer.Application", "{CB7D10D8-97C3-4E16-8098-A5F05563E5C3}"
 EndProject

@@ -16,7 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\src\MAF.InsightStreamer.Api\MAF.InsightStreamer.Api\MAF.InsightStreamer.Api.csproj" />
+    <ProjectReference Include="..\src\MAF.InsightStreamer.Api\MAF.InsightStreamer.Api.csproj" />
     <ProjectReference Include="..\MAF.InsightStreamer.ServiceDefaults\MAF.InsightStreamer.ServiceDefaults\MAF.InsightStreamer.ServiceDefaults.csproj" IsAspireProjectResource="false" />
   </ItemGroup>
 

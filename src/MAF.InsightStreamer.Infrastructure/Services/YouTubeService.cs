@@ -118,7 +118,7 @@ public class YouTubeService : IYouTubeService
             var trackManifest = await _youtubeClient.Videos.ClosedCaptions.GetManifestAsync(videoUrl);
             
             // Try to get the track for the specified language, but catch the exception
-            ClosedCaptionTrackInfo trackInfo = null;
+            ClosedCaptionTrackInfo? trackInfo = null;
             try
             {
                 trackInfo = trackManifest.GetByLanguage(languageCode);
