@@ -10,4 +10,7 @@ public class ProviderSettings
     
     // NEW: YouTube API configuration
     public required string YouTubeApiKey { get; init; }
+    
+    // NEW: Transcript service URL
+    public string TranscriptServiceUrl { get; init; } = "http://localhost:7279";
 }

@@ -16,11 +16,11 @@ namespace MAF.InsightStreamer.Api.Tests.Controllers;
 public class YouTubeControllerTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly WebApplicationFactory<Program> _factory;
-    private readonly Mock<IVideoOrchestratorService> _mockOrchestrator;
+    private readonly Mock<IContentOrchestratorService> _mockOrchestrator;
 
     public YouTubeControllerTests(WebApplicationFactory<Program> factory)
     {
-        _mockOrchestrator = new Mock<IVideoOrchestratorService>();
+        _mockOrchestrator = new Mock<IContentOrchestratorService>();
 
         _factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
@@ -28,9 +28,9 @@ public class YouTubeControllerTests : IClassFixture<WebApplicationFactory<Progra
                 builder.UseSetting("https_port", "5001");
                 builder.ConfigureServices(services =>
                 {
-                    // Remove the existing IVideoOrchestratorService registration
+                    // Remove the existing IContentOrchestratorService registration
                     var descriptor = services.SingleOrDefault(
-                        d => d.ServiceType == typeof(IVideoOrchestratorService));
+                        d => d.ServiceType == typeof(IContentOrchestratorService));
                     if (descriptor != null)
                     {
                         services.Remove(descriptor);

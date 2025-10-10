@@ -1,27 +1,38 @@
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OpenAI.Chat;
 using System.ClientModel;
+using System.Collections.Concurrent;
 using System.ComponentModel;
 using MAF.InsightStreamer.Application.Interfaces;
+using MAF.InsightStreamer.Domain.Models;
 using MAF.InsightStreamer.Infrastructure.Providers;
 
 namespace MAF.InsightStreamer.Infrastructure.Orchestration;
 
-public class VideoOrchestratorService : IVideoOrchestratorService
+public class ContentOrchestratorService : IContentOrchestratorService
 {
     private readonly IYouTubeService _youtubeService;
     private readonly IChunkingService _chunkingService;
     private readonly AIAgent _orchestrator;
+    private readonly ILogger<ContentOrchestratorService> _logger;
+    
+    // Cache for video data with 5-minute expiration
+    private readonly ConcurrentDictionary<string, (VideoMetadata metadata, List<TranscriptChunk> transcript, DateTime timestamp)> _videoCache;
+    private readonly TimeSpan _cacheExpiration = TimeSpan.FromMinutes(5);
 
-    public VideoOrchestratorService(
+    public ContentOrchestratorService(
         IOptions<ProviderSettings> settings,
         IYouTubeService youtubeService,
-        IChunkingService chunkingService)
+        IChunkingService chunkingService,
+        ILogger<ContentOrchestratorService> logger)
     {
         _youtubeService = youtubeService;
         _chunkingService = chunkingService;
+        _logger = logger;
+        _videoCache = new ConcurrentDictionary<string, (VideoMetadata, List<TranscriptChunk>, DateTime)>();
 
         var config = settings.Value;
 
@@ -43,8 +54,8 @@ public class VideoOrchestratorService : IVideoOrchestratorService
             client,
             new ChatClientAgentOptions
             {
-                Name = "VideoOrchestratorAgent",
-                Instructions = "You coordinate YouTube video analysis workflows. Use available tools to extract, chunk, and summarize video content.",
+                Name = "ContentOrchestratorAgent",
+                Instructions = "You coordinate content analysis workflows. Use available tools to extract, chunk, and summarize content.",
                 ChatOptions = new ChatOptions
                 {
                     Tools = [
@@ -55,6 +66,48 @@ public class VideoOrchestratorService : IVideoOrchestratorService
                 }
             }
         );
+    }
+
+    /// <summary>
+    /// Gets video data (metadata and transcript) with caching to avoid duplicate service calls.
+    /// </summary>
+    /// <param name="videoUrl">The YouTube video URL</param>
+    /// <returns>A tuple containing video metadata and transcript chunks</returns>
+    private async Task<(VideoMetadata metadata, List<TranscriptChunk> transcript)> GetVideoDataAsync(string videoUrl)
+    {
+        if (string.IsNullOrWhiteSpace(videoUrl))
+        {
+            throw new ArgumentException("Video URL cannot be null or empty", nameof(videoUrl));
+        }
+
+        // Check cache first
+        if (_videoCache.TryGetValue(videoUrl, out var cachedData))
+        {
+            // Check if cache is still valid
+            if (DateTime.UtcNow - cachedData.timestamp < _cacheExpiration)
+            {
+                _logger.LogInformation("Cache HIT for video URL: {VideoUrl}", videoUrl);
+                return (cachedData.metadata, cachedData.transcript);
+            }
+            else
+            {
+                // Remove expired entry
+                _videoCache.TryRemove(videoUrl, out _);
+                _logger.LogInformation("Cache EXPIRED for video URL: {VideoUrl}", videoUrl);
+            }
+        }
+
+        _logger.LogInformation("Cache MISS for video URL: {VideoUrl}. Fetching from YouTube service.", videoUrl);
+
+        // Fetch from YouTube service
+        var metadata = await _youtubeService.GetVideoMetadataAsync(videoUrl);
+        var transcript = await _youtubeService.GetTranscriptAsync(videoUrl);
+
+        // Store in cache
+        _videoCache.TryAdd(videoUrl, (metadata, transcript, DateTime.UtcNow));
+        _logger.LogInformation("Cached video data for URL: {VideoUrl}", videoUrl);
+
+        return (metadata, transcript);
     }
 
     [Description("Extract transcript and metadata from a YouTube video URL")]
@@ -68,8 +121,7 @@ public class VideoOrchestratorService : IVideoOrchestratorService
 
         try
         {
-            var metadata = await _youtubeService.GetVideoMetadataAsync(videoUrl);
-            var transcript = await _youtubeService.GetTranscriptAsync(videoUrl);
+            var (metadata, transcript) = await GetVideoDataAsync(videoUrl);
 
             return $"Extracted video: {metadata.Title} by {metadata.Author}. " +
                    $"Duration: {metadata.Duration}. Transcript has {transcript.Count} segments.";
@@ -88,8 +140,7 @@ public class VideoOrchestratorService : IVideoOrchestratorService
     {
         try
         {
-            var metadata = await _youtubeService.GetVideoMetadataAsync(videoUrl);
-            var transcript = await _youtubeService.GetTranscriptAsync(videoUrl);
+            var (metadata, transcript) = await GetVideoDataAsync(videoUrl);
             var chunks = await _chunkingService.ChunkTranscriptAsync(transcript, chunkSize, overlapSize);
 
             var totalChars = chunks.Sum(c => c.Text.Length);
@@ -112,8 +163,7 @@ public class VideoOrchestratorService : IVideoOrchestratorService
     {
         try
         {
-            var metadata = await _youtubeService.GetVideoMetadataAsync(videoUrl);
-            var transcript = await _youtubeService.GetTranscriptAsync(videoUrl);
+            var (metadata, transcript) = await GetVideoDataAsync(videoUrl);
             var chunks = await _chunkingService.ChunkTranscriptAsync(transcript, 4000, 400);
 
             var chunksToProcess = chunks.Take(maxChunks).ToList();

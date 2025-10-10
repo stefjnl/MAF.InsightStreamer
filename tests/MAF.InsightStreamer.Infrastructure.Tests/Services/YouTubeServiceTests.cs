@@ -22,12 +22,15 @@ public class YouTubeServiceTests
 {
     private readonly Mock<ILogger<InfraYouTubeService>> _mockLogger;
     private readonly Mock<IOptions<ProviderSettings>> _mockProviderSettings;
+    private readonly Mock<HttpMessageHandler> _mockHttpMessageHandler;
+    private readonly HttpClient _httpClient;
     private readonly InfraYouTubeService _service;
 
     public YouTubeServiceTests()
     {
         _mockLogger = new Mock<ILogger<InfraYouTubeService>>();
         _mockProviderSettings = new Mock<IOptions<ProviderSettings>>();
+        _mockHttpMessageHandler = new Mock<HttpMessageHandler>();
         
         // Setup mock provider settings with test API key
         var providerSettings = new ProviderSettings
@@ -35,11 +38,15 @@ public class YouTubeServiceTests
             ApiKey = "test-api-key",
             Model = "test-model",
             Endpoint = "test-endpoint",
-            YouTubeApiKey = "test-youtube-api-key"
+            YouTubeApiKey = "test-youtube-api-key",
+            TranscriptServiceUrl = "http://localhost:7279"
         };
         
         _mockProviderSettings.Setup(x => x.Value).Returns(providerSettings);
-        _service = new InfraYouTubeService(_mockLogger.Object, _mockProviderSettings.Object);
+        
+        // Setup HttpClient with mock handler
+        _httpClient = new HttpClient(_mockHttpMessageHandler.Object);
+        _service = new InfraYouTubeService(_mockLogger.Object, _mockProviderSettings.Object, _httpClient);
     }
 
     [Fact]
@@ -112,12 +119,16 @@ public class YouTubeServiceTests
             ApiKey = "test-api-key",
             Model = "test-model",
             Endpoint = "test-endpoint",
-            YouTubeApiKey = "test-youtube-api-key"
+            YouTubeApiKey = "test-youtube-api-key",
+            TranscriptServiceUrl = "http://localhost:7279"
         };
         mockProviderSettings.Setup(x => x.Value).Returns(providerSettings);
+        
+        var mockHttpMessageHandler = new Mock<HttpMessageHandler>();
+        var httpClient = new HttpClient(mockHttpMessageHandler.Object);
 
         // Act
-        var service = new InfraYouTubeService(logger, mockProviderSettings.Object);
+        var service = new InfraYouTubeService(logger, mockProviderSettings.Object, httpClient);
 
         // Assert
         Assert.NotNull(service);
@@ -133,12 +144,16 @@ public class YouTubeServiceTests
             ApiKey = "test-api-key",
             Model = "test-model",
             Endpoint = "test-endpoint",
-            YouTubeApiKey = "test-youtube-api-key"
+            YouTubeApiKey = "test-youtube-api-key",
+            TranscriptServiceUrl = "http://localhost:7279"
         };
         mockProviderSettings.Setup(x => x.Value).Returns(providerSettings);
+        
+        var mockHttpMessageHandler = new Mock<HttpMessageHandler>();
+        var httpClient = new HttpClient(mockHttpMessageHandler.Object);
 
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => new InfraYouTubeService(null!, mockProviderSettings.Object));
+        Assert.Throws<ArgumentNullException>(() => new InfraYouTubeService(null!, mockProviderSettings.Object, httpClient));
     }
 
     [Fact]
@@ -146,9 +161,11 @@ public class YouTubeServiceTests
     {
         // Arrange
         var logger = new Mock<ILogger<InfraYouTubeService>>().Object;
+        var mockHttpMessageHandler = new Mock<HttpMessageHandler>();
+        var httpClient = new HttpClient(mockHttpMessageHandler.Object);
 
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => new InfraYouTubeService(logger, null!));
+        Assert.Throws<ArgumentNullException>(() => new InfraYouTubeService(logger, null!, httpClient));
     }
 
     [Fact]
@@ -162,12 +179,16 @@ public class YouTubeServiceTests
             ApiKey = "test-api-key",
             Model = "test-model",
             Endpoint = "test-endpoint",
-            YouTubeApiKey = "" // Empty API key
+            YouTubeApiKey = "", // Empty API key
+            TranscriptServiceUrl = "http://localhost:7279"
         };
         mockProviderSettings.Setup(x => x.Value).Returns(providerSettings);
+        
+        var mockHttpMessageHandler = new Mock<HttpMessageHandler>();
+        var httpClient = new HttpClient(mockHttpMessageHandler.Object);
 
         // Act & Assert
-        Assert.Throws<ArgumentException>(() => new InfraYouTubeService(logger, mockProviderSettings.Object));
+        Assert.Throws<ArgumentException>(() => new InfraYouTubeService(logger, mockProviderSettings.Object, httpClient));
     }
 
     [Fact]

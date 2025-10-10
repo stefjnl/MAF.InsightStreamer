@@ -13,12 +13,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-	<PackageReference Include="Google.Apis.YouTube.v3" Version="1.70.0.3847" />
-	<PackageReference Include="Microsoft.Agents.AI" Version="1.0.0-preview.251001.2" />
+ <PackageReference Include="Google.Apis.YouTube.v3" Version="1.70.0.3847" />
+ <PackageReference Include="Microsoft.Agents.AI" Version="1.0.0-preview.251001.2" />
     <PackageReference Include="Microsoft.Extensions.AI" Version="9.9.1" />
     <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="9.9.1-preview.1.25474.6" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.0" />
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="9.0.0" />
     <PackageReference Include="OpenAI" Version="2.5.0" />
     <PackageReference Include="System.ClientModel" Version="1.6.1" />
