@@ -24,7 +24,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IChunkingService, ChunkingService>();
 
         // Register orchestrator as scoped - depends on scoped services
-        services.AddScoped<IVideoOrchestratorService, VideoOrchestratorService>();
+        services.AddScoped<IContentOrchestratorService, ContentOrchestratorService>();
 
         // Register other services (when implemented)
         // services.AddMemoryCache();

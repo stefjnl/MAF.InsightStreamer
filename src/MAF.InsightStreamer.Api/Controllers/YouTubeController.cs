@@ -10,11 +10,11 @@ namespace MAF.InsightStreamer.Api.Controllers;
 public class YouTubeController : ControllerBase
 {
     private readonly ProviderSettings _providerSettings;
-    private readonly IVideoOrchestratorService _orchestrator;
+    private readonly IContentOrchestratorService _orchestrator;
 
     public YouTubeController(
         IOptions<ProviderSettings> providerSettings,
-        IVideoOrchestratorService orchestrator)
+        IContentOrchestratorService orchestrator)
     {
         _providerSettings = providerSettings.Value;
         _orchestrator = orchestrator;

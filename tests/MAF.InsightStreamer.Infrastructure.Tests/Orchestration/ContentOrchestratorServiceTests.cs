@@ -14,23 +14,23 @@ using Xunit;
 
 namespace MAF.InsightStreamer.Infrastructure.Tests.Orchestration;
 
-public class VideoOrchestratorServiceTests
+public class ContentOrchestratorServiceTests
 {
     private readonly Mock<IYouTubeService> _mockYouTubeService;
     private readonly Mock<IChunkingService> _mockChunkingService;
     private readonly Mock<IOptions<ProviderSettings>> _mockSettings;
-    private readonly Mock<ILogger<VideoOrchestratorService>> _mockLogger;
-    private readonly VideoOrchestratorService _service;
+    private readonly Mock<ILogger<ContentOrchestratorService>> _mockLogger;
+    private readonly ContentOrchestratorService _service;
 
-    public VideoOrchestratorServiceTests()
+    public ContentOrchestratorServiceTests()
     {
         _mockYouTubeService = new Mock<IYouTubeService>();
         _mockChunkingService = new Mock<IChunkingService>();
-        _mockLogger = new Mock<ILogger<VideoOrchestratorService>>();
+        _mockLogger = new Mock<ILogger<ContentOrchestratorService>>();
 
         // Setup configuration to use user secrets
         var configuration = new ConfigurationBuilder()
-            .AddUserSecrets<VideoOrchestratorServiceTests>()
+            .AddUserSecrets<ContentOrchestratorServiceTests>()
             .Build();
 
         // Setup settings from configuration with real OpenRouter endpoint
@@ -46,7 +46,7 @@ public class VideoOrchestratorServiceTests
         _mockSettings = new Mock<IOptions<ProviderSettings>>();
         _mockSettings.Setup(s => s.Value).Returns(settings);
 
-        _service = new VideoOrchestratorService(_mockSettings.Object, _mockYouTubeService.Object, _mockChunkingService.Object, _mockLogger.Object);
+        _service = new ContentOrchestratorService(_mockSettings.Object, _mockYouTubeService.Object, _mockChunkingService.Object, _mockLogger.Object);
     }
 
     [Fact]

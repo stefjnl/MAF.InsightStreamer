@@ -12,22 +12,22 @@ using MAF.InsightStreamer.Infrastructure.Providers;
 
 namespace MAF.InsightStreamer.Infrastructure.Orchestration;
 
-public class VideoOrchestratorService : IVideoOrchestratorService
+public class ContentOrchestratorService : IContentOrchestratorService
 {
     private readonly IYouTubeService _youtubeService;
     private readonly IChunkingService _chunkingService;
     private readonly AIAgent _orchestrator;
-    private readonly ILogger<VideoOrchestratorService> _logger;
+    private readonly ILogger<ContentOrchestratorService> _logger;
     
     // Cache for video data with 5-minute expiration
     private readonly ConcurrentDictionary<string, (VideoMetadata metadata, List<TranscriptChunk> transcript, DateTime timestamp)> _videoCache;
     private readonly TimeSpan _cacheExpiration = TimeSpan.FromMinutes(5);
 
-    public VideoOrchestratorService(
+    public ContentOrchestratorService(
         IOptions<ProviderSettings> settings,
         IYouTubeService youtubeService,
         IChunkingService chunkingService,
-        ILogger<VideoOrchestratorService> logger)
+        ILogger<ContentOrchestratorService> logger)
     {
         _youtubeService = youtubeService;
         _chunkingService = chunkingService;
@@ -54,8 +54,8 @@ public class VideoOrchestratorService : IVideoOrchestratorService
             client,
             new ChatClientAgentOptions
             {
-                Name = "VideoOrchestratorAgent",
-                Instructions = "You coordinate YouTube video analysis workflows. Use available tools to extract, chunk, and summarize video content.",
+                Name = "ContentOrchestratorAgent",
+                Instructions = "You coordinate content analysis workflows. Use available tools to extract, chunk, and summarize content.",
                 ChatOptions = new ChatOptions
                 {
                     Tools = [
