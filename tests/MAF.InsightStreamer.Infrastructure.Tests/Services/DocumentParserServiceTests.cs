@@ -274,4 +274,228 @@ Emoji: 🌍🌎🌏";
         // Arrange & Act & Assert
         Assert.Throws<ArgumentNullException>(() => new DocumentParserService(null!));
     }
+
+    [Fact]
+    public async Task ExtractTextAsync_WithValidPdfFile_ReturnsExpectedText()
+    {
+        // Arrange
+        var pdfPath = Path.Combine("..", "..", "..", "..", "..", "TestData", "valid.pdf");
+        
+        // Skip test if test file doesn't exist
+        if (!File.Exists(pdfPath))
+        {
+            return;
+        }
+
+        using var stream = new MemoryStream(File.ReadAllBytes(pdfPath));
+
+        // Act
+        var result = await _service.ExtractTextAsync(stream, DocumentType.Pdf);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Contains("Test PDF Document", result);
+    }
+
+    [Fact]
+    public async Task ExtractTextAsync_WithEmptyPdfFile_ThrowsDocumentParsingException()
+    {
+        // Arrange
+        var pdfPath = Path.Combine("..", "..", "..", "..", "..", "TestData", "empty.pdf");
+        
+        // Skip test if test file doesn't exist
+        if (!File.Exists(pdfPath))
+        {
+            return;
+        }
+
+        using var stream = new MemoryStream(File.ReadAllBytes(pdfPath));
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<DocumentParsingException>(() =>
+            _service.ExtractTextAsync(stream, DocumentType.Pdf));
+
+        Assert.Equal(DocumentType.Pdf, exception.DocumentType);
+        Assert.Contains("not a valid PDF document", exception.Message);
+    }
+
+    [Fact]
+    public async Task ExtractTextAsync_WithCorruptedPdfFile_ThrowsDocumentParsingException()
+    {
+        // Arrange
+        var pdfPath = Path.Combine("..", "..", "..", "..", "..", "TestData", "corrupted.pdf");
+        
+        // Skip test if test file doesn't exist
+        if (!File.Exists(pdfPath))
+        {
+            return;
+        }
+
+        using var stream = new MemoryStream(File.ReadAllBytes(pdfPath));
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<DocumentParsingException>(() =>
+            _service.ExtractTextAsync(stream, DocumentType.Pdf));
+
+        Assert.Equal(DocumentType.Pdf, exception.DocumentType);
+        Assert.Contains("not a valid PDF document", exception.Message);
+    }
+
+    [Fact]
+    public async Task ExtractTextAsync_WithInvalidPdfSignature_ThrowsDocumentParsingException()
+    {
+        // Arrange
+        var invalidPdfContent = "This is not a PDF file";
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(invalidPdfContent));
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<DocumentParsingException>(() =>
+            _service.ExtractTextAsync(stream, DocumentType.Pdf));
+
+        Assert.Equal(DocumentType.Pdf, exception.DocumentType);
+        Assert.Contains("not a valid PDF document", exception.Message);
+    }
+
+    [Fact]
+    public async Task ExtractTextAsync_WithTooSmallPdfStream_ThrowsDocumentParsingException()
+    {
+        // Arrange
+        var smallContent = "PDF";
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(smallContent));
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<DocumentParsingException>(() =>
+            _service.ExtractTextAsync(stream, DocumentType.Pdf));
+
+        Assert.Equal(DocumentType.Pdf, exception.DocumentType);
+        Assert.Contains("not a valid PDF document", exception.Message);
+    }
+
+    [Fact]
+    public async Task GetPageCountAsync_WithValidPdfFile_ReturnsPageCount()
+    {
+        // Arrange
+        var pdfPath = Path.Combine("..", "..", "..", "..", "..", "TestData", "valid.pdf");
+        
+        // Skip test if test file doesn't exist
+        if (!File.Exists(pdfPath))
+        {
+            return;
+        }
+
+        using var stream = new MemoryStream(File.ReadAllBytes(pdfPath));
+
+        // Act
+        var result = await _service.GetPageCountAsync(stream, DocumentType.Pdf);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(1, result); // Our test PDF has 1 page
+    }
+
+    [Fact]
+    public async Task GetPageCountAsync_WithEmptyPdfFile_ThrowsDocumentParsingException()
+    {
+        // Arrange
+        var pdfPath = Path.Combine("..", "..", "..", "..", "..", "TestData", "empty.pdf");
+        
+        // Skip test if test file doesn't exist
+        if (!File.Exists(pdfPath))
+        {
+            return;
+        }
+
+        using var stream = new MemoryStream(File.ReadAllBytes(pdfPath));
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<DocumentParsingException>(() =>
+            _service.GetPageCountAsync(stream, DocumentType.Pdf));
+
+        Assert.Equal(DocumentType.Pdf, exception.DocumentType);
+        Assert.Contains("not a valid PDF document", exception.Message);
+    }
+
+    [Fact]
+    public async Task GetPageCountAsync_WithCorruptedPdfFile_ThrowsDocumentParsingException()
+    {
+        // Arrange
+        var pdfPath = Path.Combine("..", "..", "..", "..", "..", "TestData", "corrupted.pdf");
+        
+        // Skip test if test file doesn't exist
+        if (!File.Exists(pdfPath))
+        {
+            return;
+        }
+
+        using var stream = new MemoryStream(File.ReadAllBytes(pdfPath));
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<DocumentParsingException>(() =>
+            _service.GetPageCountAsync(stream, DocumentType.Pdf));
+
+        Assert.Equal(DocumentType.Pdf, exception.DocumentType);
+        Assert.Contains("not a valid PDF document", exception.Message);
+    }
+
+    [Fact]
+    public async Task ExtractTextAsync_WithPdfStream_PreservesStreamPosition()
+    {
+        // Arrange
+        var pdfPath = Path.Combine("..", "..", "..", "..", "..", "TestData", "valid.pdf");
+        
+        // Skip test if test file doesn't exist
+        if (!File.Exists(pdfPath))
+        {
+            return;
+        }
+
+        var pdfBytes = File.ReadAllBytes(pdfPath);
+        using var stream = new MemoryStream(pdfBytes);
+        var originalPosition = 10L;
+        stream.Position = originalPosition;
+
+        // Act
+        try
+        {
+            await _service.ExtractTextAsync(stream, DocumentType.Pdf);
+        }
+        catch
+        {
+            // We don't care about parsing success for this test, just position preservation
+        }
+
+        // Assert
+        Assert.Equal(originalPosition, stream.Position);
+    }
+
+    [Fact]
+    public async Task GetPageCountAsync_WithPdfStream_PreservesStreamPosition()
+    {
+        // Arrange
+        var pdfPath = Path.Combine("..", "..", "..", "..", "..", "TestData", "valid.pdf");
+        
+        // Skip test if test file doesn't exist
+        if (!File.Exists(pdfPath))
+        {
+            return;
+        }
+
+        var pdfBytes = File.ReadAllBytes(pdfPath);
+        using var stream = new MemoryStream(pdfBytes);
+        var originalPosition = 10L;
+        stream.Position = originalPosition;
+
+        // Act
+        try
+        {
+            await _service.GetPageCountAsync(stream, DocumentType.Pdf);
+        }
+        catch
+        {
+            // We don't care about parsing success for this test, just position preservation
+        }
+
+        // Assert
+        Assert.Equal(originalPosition, stream.Position);
+    }
 }

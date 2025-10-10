@@ -11,26 +11,70 @@
         <!-- Header -->
         <header class="text-center mb-12">
             <h1 class="text-4xl font-bold text-gray-900 mb-2">MAF.InsightStreamer</h1>
-            <p class="text-gray-600">AI-Powered YouTube Video Analysis</p>
+            <p class="text-gray-600">AI-Powered Content Analysis</p>
         </header>
         
-        <!-- Input Section -->
-        <div class="bg-white shadow-md rounded-lg p-6 mb-8">
+        <!-- Tab Navigation -->
+        <div class="bg-white shadow-md rounded-lg p-2 mb-8">
+            <div class="flex">
+                <button
+                    id="youtubeTab"
+                    onclick="switchTab('youtube')"
+                    class="flex-1 py-2 px-4 rounded-lg font-medium transition bg-blue-600 text-white"
+                >
+                    YouTube Analysis
+                </button>
+                <button
+                    id="documentTab"
+                    onclick="switchTab('document')"
+                    class="flex-1 py-2 px-4 rounded-lg font-medium transition text-gray-700 hover:bg-gray-100"
+                >
+                    Document Analysis
+                </button>
+            </div>
+        </div>
+
+        <!-- YouTube Input Section -->
+        <div id="youtubeSection" class="bg-white shadow-md rounded-lg p-6 mb-8">
             <label for="videoUrl" class="block text-sm font-medium text-gray-700 mb-2">
                 YouTube Video URL
             </label>
             <div class="flex gap-4">
-                <input 
-                    type="text" 
-                    id="videoUrl" 
-                    placeholder="https://www.youtube.com/watch?v=..." 
+                <input
+                    type="text"
+                    id="videoUrl"
+                    placeholder="https://www.youtube.com/watch?v=..."
                     class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
-                <button 
-                    onclick="analyzeVideo()" 
+                <button
+                    onclick="analyzeVideo()"
                     class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition font-medium"
                 >
                     Analyze
+                </button>
+            </div>
+        </div>
+
+        <!-- Document Upload Section -->
+        <div id="documentSection" class="hidden bg-white shadow-md rounded-lg p-6 mb-8">
+            <label for="documentFile" class="block text-sm font-medium text-gray-700 mb-2">
+                Upload Document (PDF, Word, Markdown, or Plain Text)
+            </label>
+            <div class="mb-4">
+                <input
+                    type="file"
+                    id="documentFile"
+                    accept=".pdf,.docx,.md,.txt"
+                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                />
+                <p class="text-xs text-gray-500 mt-2">Maximum file size: 10MB. Supported formats: PDF, DOCX, MD, TXT</p>
+            </div>
+            <div class="flex gap-4">
+                <button
+                    onclick="analyzeDocument()"
+                    class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition font-medium"
+                >
+                    Analyze Document
                 </button>
             </div>
         </div>
@@ -38,7 +82,7 @@
         <!-- Loading Spinner -->
         <div id="loading" class="hidden text-center py-8">
             <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            <p class="text-gray-600 mt-4">Analyzing video...</p>
+            <p class="text-gray-600 mt-4" id="loadingText">Analyzing content...</p>
         </div>
         
         <!-- Error Message -->
@@ -48,12 +92,70 @@
         
         <!-- Results Section -->
         <div id="results" class="hidden bg-white shadow-lg rounded-lg p-6">
-            <h2 class="text-2xl font-bold text-gray-900 mb-4">Analysis Results</h2>
-            <div id="resultsContent" class="text-gray-700 whitespace-pre-wrap"></div>
+            <h2 class="text-2xl font-bold text-gray-900 mb-4" id="resultsTitle">Analysis Results</h2>
+            
+            <!-- Document Metadata -->
+            <div id="documentMetadata" class="hidden mb-6 p-4 bg-gray-50 rounded-lg">
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">Document Information</h3>
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <span class="font-medium text-gray-600">File Name:</span>
+                        <span id="metaFileName" class="text-gray-800 ml-2"></span>
+                    </div>
+                    <div>
+                        <span class="font-medium text-gray-600">File Type:</span>
+                        <span id="metaFileType" class="text-gray-800 ml-2"></span>
+                    </div>
+                    <div>
+                        <span class="font-medium text-gray-600">File Size:</span>
+                        <span id="metaFileSize" class="text-gray-800 ml-2"></span>
+                    </div>
+                    <div>
+                        <span class="font-medium text-gray-600">Page Count:</span>
+                        <span id="metaPageCount" class="text-gray-800 ml-2"></span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Analysis Content -->
+            <div id="resultsContent" class="text-gray-700"></div>
         </div>
     </div>
     
     <script>
+        // Tab switching functionality
+        function switchTab(tab) {
+            const youtubeTab = document.getElementById('youtubeTab');
+            const documentTab = document.getElementById('documentTab');
+            const youtubeSection = document.getElementById('youtubeSection');
+            const documentSection = document.getElementById('documentSection');
+            
+            if (tab === 'youtube') {
+                // Activate YouTube tab
+                youtubeTab.classList.add('bg-blue-600', 'text-white');
+                youtubeTab.classList.remove('text-gray-700', 'hover:bg-gray-100');
+                documentTab.classList.remove('bg-blue-600', 'text-white');
+                documentTab.classList.add('text-gray-700', 'hover:bg-gray-100');
+                
+                // Show YouTube section
+                youtubeSection.classList.remove('hidden');
+                documentSection.classList.add('hidden');
+            } else {
+                // Activate Document tab
+                documentTab.classList.add('bg-blue-600', 'text-white');
+                documentTab.classList.remove('text-gray-700', 'hover:bg-gray-100');
+                youtubeTab.classList.remove('bg-blue-600', 'text-white');
+                youtubeTab.classList.add('text-gray-700', 'hover:bg-gray-100');
+                
+                // Show Document section
+                documentSection.classList.remove('hidden');
+                youtubeSection.classList.add('hidden');
+            }
+            
+            // Hide results when switching tabs
+            hideResults();
+        }
+
         async function analyzeVideo() {
             const url = document.getElementById('videoUrl').value;
             
@@ -64,9 +166,7 @@
             }
             
             // Show loading, hide previous results
-            document.getElementById('loading').classList.remove('hidden');
-            document.getElementById('results').classList.add('hidden');
-            document.getElementById('error').classList.add('hidden');
+            showLoading('Analyzing video...');
             
             try {
                 const response = await fetch('/api/youtube/summarize', {
@@ -81,17 +181,146 @@
                 }
                 
                 const result = await response.text();
-                displayResults(result);
+                displayVideoResults(result);
             } catch (error) {
                 showError(error.message);
             } finally {
-                document.getElementById('loading').classList.add('hidden');
+                hideLoading();
             }
         }
 
-        function displayResults(result) {
-            document.getElementById('resultsContent').textContent = result;
+        async function analyzeDocument() {
+            const fileInput = document.getElementById('documentFile');
+            const file = fileInput.files[0];
+            
+            // Validate file
+            if (!file) {
+                showError('Please select a document file');
+                return;
+            }
+            
+            // Validate file type
+            const allowedTypes = ['.pdf', '.docx', '.md', '.txt'];
+            const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+            if (!allowedTypes.includes(fileExtension)) {
+                showError('Invalid file type. Please select a PDF, DOCX, MD, or TXT file.');
+                return;
+            }
+            
+            // Validate file size (10MB)
+            const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+            if (file.size > maxSize) {
+                showError('File size exceeds 10MB limit. Please select a smaller file.');
+                return;
+            }
+            
+            // Show loading, hide previous results
+            showLoading('Analyzing document...');
+            
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('analysisRequest', 'Provide a concise summary and extract key points');
+                
+                const response = await fetch('/api/document/analyze', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(errorText || 'Document analysis failed');
+                }
+                
+                const result = await response.json();
+                displayDocumentResults(result);
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function showLoading(text) {
+            document.getElementById('loadingText').textContent = text;
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('results').classList.add('hidden');
+            document.getElementById('error').classList.add('hidden');
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').classList.add('hidden');
+        }
+
+        function hideResults() {
+            document.getElementById('results').classList.add('hidden');
+            document.getElementById('error').classList.add('hidden');
+        }
+
+        function displayVideoResults(result) {
+            document.getElementById('resultsTitle').textContent = 'Video Analysis Results';
+            document.getElementById('documentMetadata').classList.add('hidden');
+            document.getElementById('resultsContent').innerHTML = `<pre class="whitespace-pre-wrap">${result}</pre>`;
             document.getElementById('results').classList.remove('hidden');
+        }
+
+        function displayDocumentResults(result) {
+            document.getElementById('resultsTitle').textContent = 'Document Analysis Results';
+            
+            // Display document metadata
+            const metadata = result.metadata;
+            document.getElementById('metaFileName').textContent = metadata.fileName;
+            document.getElementById('metaFileType').textContent = metadata.fileType;
+            document.getElementById('metaFileSize').textContent = formatFileSize(metadata.fileSizeBytes);
+            document.getElementById('metaPageCount').textContent = metadata.pageCount || 'N/A';
+            document.getElementById('documentMetadata').classList.remove('hidden');
+            
+            // Display analysis results
+            let contentHtml = '';
+            
+            // Summary section
+            if (result.summary) {
+                contentHtml += `
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-2">Summary</h3>
+                        <p class="text-gray-700 leading-relaxed">${result.summary}</p>
+                    </div>
+                `;
+            }
+            
+            // Key points section
+            if (result.keyPoints && result.keyPoints.length > 0) {
+                contentHtml += `
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-2">Key Points</h3>
+                        <ul class="list-disc list-inside space-y-2">
+                            ${result.keyPoints.map(point => `<li class="text-gray-700">${point}</li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+            }
+            
+            // Processing info
+            contentHtml += `
+                <div class="mt-6 pt-4 border-t border-gray-200">
+                    <p class="text-sm text-gray-500">
+                        Document processed in ${result.processingTimeMs}ms across ${result.chunkCount} chunks
+                    </p>
+                </div>
+            `;
+            
+            document.getElementById('resultsContent').innerHTML = contentHtml;
+            document.getElementById('results').classList.remove('hidden');
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
 
         function showError(message) {

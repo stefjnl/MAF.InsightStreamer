@@ -36,8 +36,10 @@ public static class ServiceCollectionExtensions
         // Register orchestrator as scoped - depends on scoped services
         services.AddScoped<IContentOrchestratorService, ContentOrchestratorService>();
 
+        // Register memory cache for caching functionality
+        services.AddMemoryCache();
+        
         // Register other services (when implemented)
-        // services.AddMemoryCache();
         // services.AddScoped<IVideoCacheService, VideoCacheService>();
 
         return services;

@@ -98,16 +98,60 @@ public class DocumentParserService : IDocumentParserService
     /// <returns>A task that represents the asynchronous operation, containing the extracted text content.</returns>
     private async Task<string> ExtractFromPdfAsync(Stream stream)
     {
+        // Store original position to restore if needed
+        var originalPosition = stream.Position;
+        
         try
         {
+            // Validate PDF file signature
+            if (!IsValidPdfFile(stream))
+            {
+                throw new DocumentParsingException(DocumentType.Pdf, "The provided file is not a valid PDF document. PDF files must start with '%PDF'.");
+            }
+
+            // Reset stream position for PdfPig
+            stream.Position = originalPosition;
+            
             using var document = PdfDocument.Open(stream);
             var text = string.Join("\n", document.GetPages().Select(p => p.Text));
             return await Task.FromResult(text);
+        }
+        catch (DocumentParsingException)
+        {
+            // Re-throw our custom exceptions as-is
+            throw;
+        }
+        catch (ArgumentOutOfRangeException ex)
+        {
+            _logger.LogError(ex, "PDF document is corrupted or has invalid structure");
+            throw new DocumentParsingException(DocumentType.Pdf, "The PDF document is corrupted or has an invalid structure that cannot be parsed.", ex);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "PDF document has invalid format or structure");
+            throw new DocumentParsingException(DocumentType.Pdf, "The PDF document has an invalid format or structure.", ex);
+        }
+        catch (InvalidDataException ex)
+        {
+            _logger.LogError(ex, "PDF document contains invalid data");
+            throw new DocumentParsingException(DocumentType.Pdf, "The PDF document contains invalid data and cannot be processed.", ex);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to extract text from PDF document");
             throw new DocumentParsingException(DocumentType.Pdf, "Failed to extract text from PDF document", ex);
+        }
+        finally
+        {
+            // Always restore the original stream position
+            try
+            {
+                stream.Position = originalPosition;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to restore stream position after PDF parsing");
+            }
         }
     }
 
@@ -166,6 +210,58 @@ public class DocumentParserService : IDocumentParserService
     }
 
     /// <summary>
+    /// Validates if the stream contains a valid PDF file by checking the PDF signature.
+    /// </summary>
+    /// <param name="stream">The stream to validate.</param>
+    /// <returns>True if the stream contains a valid PDF signature, false otherwise.</returns>
+    private static bool IsValidPdfFile(Stream stream)
+    {
+        if (stream == null || stream.Length < 5)
+        {
+            return false;
+        }
+
+        // Store current position
+        var originalPosition = stream.Position;
+        
+        try
+        {
+            // Reset to beginning to check signature
+            stream.Position = 0;
+            
+            // Read first 5 bytes to check for PDF signature
+            var header = new byte[5];
+            var bytesRead = stream.Read(header, 0, 5);
+            
+            if (bytesRead < 5)
+            {
+                return false;
+            }
+
+            // Check if the file starts with "%PDF-"
+            var headerString = System.Text.Encoding.ASCII.GetString(header);
+            return headerString.StartsWith("%PDF-");
+        }
+        catch (Exception)
+        {
+            // If we can't read the stream, it's not a valid PDF
+            return false;
+        }
+        finally
+        {
+            // Restore original position
+            try
+            {
+                stream.Position = originalPosition;
+            }
+            catch
+            {
+                // If we can't restore position, the caller will handle it
+            }
+        }
+    }
+
+    /// <summary>
     /// Extracts text content from a plain text file.
     /// </summary>
     /// <param name="stream">The stream containing the plain text data.</param>
@@ -191,15 +287,59 @@ public class DocumentParserService : IDocumentParserService
     /// <returns>A task that represents the asynchronous operation, containing the page count.</returns>
     private async Task<int?> GetPdfPageCountAsync(Stream stream)
     {
+        // Store original position to restore if needed
+        var originalPosition = stream.Position;
+        
         try
         {
+            // Validate PDF file signature
+            if (!IsValidPdfFile(stream))
+            {
+                throw new DocumentParsingException(DocumentType.Pdf, "The provided file is not a valid PDF document. PDF files must start with '%PDF'.");
+            }
+
+            // Reset stream position for PdfPig
+            stream.Position = originalPosition;
+            
             using var document = PdfDocument.Open(stream);
             return await Task.FromResult((int?)document.NumberOfPages);
+        }
+        catch (DocumentParsingException)
+        {
+            // Re-throw our custom exceptions as-is
+            throw;
+        }
+        catch (ArgumentOutOfRangeException ex)
+        {
+            _logger.LogError(ex, "PDF document is corrupted or has invalid structure");
+            throw new DocumentParsingException(DocumentType.Pdf, "The PDF document is corrupted or has an invalid structure that cannot be parsed.", ex);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "PDF document has invalid format or structure");
+            throw new DocumentParsingException(DocumentType.Pdf, "The PDF document has an invalid format or structure.", ex);
+        }
+        catch (InvalidDataException ex)
+        {
+            _logger.LogError(ex, "PDF document contains invalid data");
+            throw new DocumentParsingException(DocumentType.Pdf, "The PDF document contains invalid data and cannot be processed.", ex);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to get page count from PDF document");
             throw new DocumentParsingException(DocumentType.Pdf, "Failed to get page count from PDF document", ex);
+        }
+        finally
+        {
+            // Always restore the original stream position
+            try
+            {
+                stream.Position = originalPosition;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to restore stream position after PDF page count parsing");
+            }
         }
     }
 }
