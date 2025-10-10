@@ -3,6 +3,7 @@ using MAF.InsightStreamer.Domain.Enums;
 using MAF.InsightStreamer.Domain.Models;
 using Microsoft.Extensions.Logging;
 using System.Text;
+using System.Threading;
 using UglyToad.PdfPig;
 using DocumentFormat.OpenXml.Packaging;
 
@@ -31,7 +32,7 @@ public class DocumentParserService : IDocumentParserService
     /// <param name="documentType">The type of document to parse.</param>
     /// <returns>A task that represents the asynchronous operation, containing the extracted text content.</returns>
     /// <exception cref="DocumentParsingException">Thrown when document parsing fails.</exception>
-    public async Task<string> ExtractTextAsync(Stream fileStream, DocumentType documentType)
+    public async Task<string> ExtractTextAsync(Stream fileStream, DocumentType documentType, CancellationToken cancellationToken = default)
     {
         if (fileStream == null)
             throw new ArgumentNullException(nameof(fileStream));
@@ -40,10 +41,10 @@ public class DocumentParserService : IDocumentParserService
         {
             return documentType switch
             {
-                DocumentType.Pdf => await ExtractFromPdfAsync(fileStream),
-                DocumentType.Word => await ExtractFromWordAsync(fileStream),
-                DocumentType.Markdown => await ExtractFromMarkdownAsync(fileStream),
-                DocumentType.PlainText => await ExtractFromPlainTextAsync(fileStream),
+                DocumentType.Pdf => await ExtractFromPdfAsync(fileStream, cancellationToken),
+                DocumentType.Word => await ExtractFromWordAsync(fileStream, cancellationToken),
+                DocumentType.Markdown => await ExtractFromMarkdownAsync(fileStream, cancellationToken),
+                DocumentType.PlainText => await ExtractFromPlainTextAsync(fileStream, cancellationToken),
                 _ => throw new DocumentParsingException(documentType, $"Unsupported document type: {documentType}")
             };
         }
@@ -66,7 +67,7 @@ public class DocumentParserService : IDocumentParserService
     /// <param name="documentType">The type of document to analyze.</param>
     /// <returns>A task that represents the asynchronous operation, containing the page count if applicable, null otherwise.</returns>
     /// <exception cref="DocumentParsingException">Thrown when document analysis fails.</exception>
-    public async Task<int?> GetPageCountAsync(Stream fileStream, DocumentType documentType)
+    public async Task<int?> GetPageCountAsync(Stream fileStream, DocumentType documentType, CancellationToken cancellationToken = default)
     {
         if (fileStream == null)
             throw new ArgumentNullException(nameof(fileStream));
@@ -75,7 +76,7 @@ public class DocumentParserService : IDocumentParserService
         {
             return documentType switch
             {
-                DocumentType.Pdf => await GetPdfPageCountAsync(fileStream),
+                DocumentType.Pdf => await GetPdfPageCountAsync(fileStream, cancellationToken),
                 _ => null // Page count not applicable for other document types
             };
         }
@@ -96,8 +97,14 @@ public class DocumentParserService : IDocumentParserService
     /// </summary>
     /// <param name="stream">The stream containing the PDF data.</param>
     /// <returns>A task that represents the asynchronous operation, containing the extracted text content.</returns>
-    private async Task<string> ExtractFromPdfAsync(Stream stream)
+    private async Task<string> ExtractFromPdfAsync(Stream stream, CancellationToken cancellationToken = default)
     {
+        // Check if stream is seekable
+        if (!stream.CanSeek)
+        {
+            throw new ArgumentException("Stream must be seekable for PDF processing", nameof(stream));
+        }
+
         // Store original position to restore if needed
         var originalPosition = stream.Position;
         
@@ -160,8 +167,17 @@ public class DocumentParserService : IDocumentParserService
     /// </summary>
     /// <param name="stream">The stream containing the Word document data.</param>
     /// <returns>A task that represents the asynchronous operation, containing the extracted text content.</returns>
-    private async Task<string> ExtractFromWordAsync(Stream stream)
+    private async Task<string> ExtractFromWordAsync(Stream stream, CancellationToken cancellationToken = default)
     {
+        // Check if stream is seekable
+        if (!stream.CanSeek)
+        {
+            throw new ArgumentException("Stream must be seekable for Word document processing", nameof(stream));
+        }
+
+        // Store original position to restore if needed
+        var originalPosition = stream.Position;
+        
         try
         {
             using var wordDocument = WordprocessingDocument.Open(stream, false);
@@ -184,6 +200,18 @@ public class DocumentParserService : IDocumentParserService
             _logger.LogError(ex, "Failed to extract text from Word document");
             throw new DocumentParsingException(DocumentType.Word, "Failed to extract text from Word document", ex);
         }
+        finally
+        {
+            // Always restore the original stream position
+            try
+            {
+                stream.Position = originalPosition;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to restore stream position after Word document parsing");
+            }
+        }
     }
 
     /// <summary>
@@ -191,12 +219,24 @@ public class DocumentParserService : IDocumentParserService
     /// </summary>
     /// <param name="stream">The stream containing the Markdown data.</param>
     /// <returns>A task that represents the asynchronous operation, containing the extracted text content.</returns>
-    private async Task<string> ExtractFromMarkdownAsync(Stream stream)
+    private async Task<string> ExtractFromMarkdownAsync(Stream stream, CancellationToken cancellationToken = default)
     {
+        // Check if stream is seekable
+        if (!stream.CanSeek)
+        {
+            throw new ArgumentException("Stream must be seekable for Markdown document processing", nameof(stream));
+        }
+
+        // Store original position to restore if needed
+        var originalPosition = stream.Position;
+        
         try
         {
+            // Reset position to ensure we read from the beginning
+            stream.Position = 0;
+            
             using var reader = new StreamReader(stream, Encoding.UTF8);
-            var content = await reader.ReadToEndAsync();
+            var content = await reader.ReadToEndAsync(cancellationToken);
             
             // For now, return the raw markdown content
             // In the future, we could strip markdown syntax if needed
@@ -206,6 +246,18 @@ public class DocumentParserService : IDocumentParserService
         {
             _logger.LogError(ex, "Failed to extract text from Markdown document");
             throw new DocumentParsingException(DocumentType.Markdown, "Failed to extract text from Markdown document", ex);
+        }
+        finally
+        {
+            // Always restore the original stream position
+            try
+            {
+                stream.Position = originalPosition;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to restore stream position after Markdown document parsing");
+            }
         }
     }
 
@@ -266,17 +318,41 @@ public class DocumentParserService : IDocumentParserService
     /// </summary>
     /// <param name="stream">The stream containing the plain text data.</param>
     /// <returns>A task that represents the asynchronous operation, containing the extracted text content.</returns>
-    private async Task<string> ExtractFromPlainTextAsync(Stream stream)
+    private async Task<string> ExtractFromPlainTextAsync(Stream stream, CancellationToken cancellationToken = default)
     {
+        // Check if stream is seekable
+        if (!stream.CanSeek)
+        {
+            throw new ArgumentException("Stream must be seekable for plain text document processing", nameof(stream));
+        }
+
+        // Store original position to restore if needed
+        var originalPosition = stream.Position;
+        
         try
         {
+            // Reset position to ensure we read from the beginning
+            stream.Position = 0;
+            
             using var reader = new StreamReader(stream, Encoding.UTF8);
-            return await reader.ReadToEndAsync();
+            return await reader.ReadToEndAsync(cancellationToken);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to extract text from plain text document");
             throw new DocumentParsingException(DocumentType.PlainText, "Failed to extract text from plain text document", ex);
+        }
+        finally
+        {
+            // Always restore the original stream position
+            try
+            {
+                stream.Position = originalPosition;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to restore stream position after plain text document parsing");
+            }
         }
     }
 
@@ -285,8 +361,14 @@ public class DocumentParserService : IDocumentParserService
     /// </summary>
     /// <param name="stream">The stream containing the PDF data.</param>
     /// <returns>A task that represents the asynchronous operation, containing the page count.</returns>
-    private async Task<int?> GetPdfPageCountAsync(Stream stream)
+    private async Task<int?> GetPdfPageCountAsync(Stream stream, CancellationToken cancellationToken = default)
     {
+        // Check if stream is seekable
+        if (!stream.CanSeek)
+        {
+            throw new ArgumentException("Stream must be seekable for PDF page count processing", nameof(stream));
+        }
+
         // Store original position to restore if needed
         var originalPosition = stream.Position;
         

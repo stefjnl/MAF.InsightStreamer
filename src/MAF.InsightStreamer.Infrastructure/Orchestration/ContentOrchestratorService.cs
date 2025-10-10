@@ -7,6 +7,7 @@ using System.ClientModel;
 using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Text.Json;
+using System.Threading;
 using MAF.InsightStreamer.Application.Interfaces;
 using MAF.InsightStreamer.Domain.Models;
 using MAF.InsightStreamer.Infrastructure.Providers;
@@ -26,7 +27,7 @@ public class ContentOrchestratorService : IContentOrchestratorService
     private readonly TimeSpan _cacheExpiration = TimeSpan.FromMinutes(5);
     
     // Thread cache at orchestrator level to keep threads warm during service lifetime
-    private readonly Dictionary<string, object> _activeThreads = new();
+    private readonly ConcurrentDictionary<string, object> _activeThreads = new();
 
     public ContentOrchestratorService(
         IOptions<ProviderSettings> settings,
@@ -40,6 +41,7 @@ public class ContentOrchestratorService : IContentOrchestratorService
         _threadManagementService = threadManagementService;
         _logger = logger;
         _videoCache = new ConcurrentDictionary<string, (VideoMetadata, List<TranscriptChunk>, DateTime)>();
+        _activeThreads = new ConcurrentDictionary<string, object>();
 
         var config = settings.Value;
 
@@ -81,7 +83,7 @@ public class ContentOrchestratorService : IContentOrchestratorService
     /// </summary>
     /// <param name="videoUrl">The YouTube video URL</param>
     /// <returns>A tuple containing video metadata and transcript chunks</returns>
-    private async Task<(VideoMetadata metadata, List<TranscriptChunk> transcript)> GetVideoDataAsync(string videoUrl)
+    private async Task<(VideoMetadata metadata, List<TranscriptChunk> transcript)> GetVideoDataAsync(string videoUrl, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(videoUrl))
         {
@@ -108,8 +110,16 @@ public class ContentOrchestratorService : IContentOrchestratorService
         _logger.LogInformation("Cache MISS for video URL: {VideoUrl}. Fetching from YouTube service.", videoUrl);
 
         // Fetch from YouTube service
-        var metadata = await _youtubeService.GetVideoMetadataAsync(videoUrl);
-        var transcript = await _youtubeService.GetTranscriptAsync(videoUrl);
+        var metadata = await _youtubeService.GetVideoMetadataAsync(videoUrl, cancellationToken);
+        var transcriptResult = await _youtubeService.GetTranscriptAsync(videoUrl, cancellationToken: cancellationToken);
+
+        if (!transcriptResult.Success)
+        {
+            _logger.LogError("Failed to extract transcript for video {VideoUrl}: {ErrorMessage}", videoUrl, transcriptResult.ErrorMessage);
+            throw new InvalidOperationException($"Failed to extract transcript: {transcriptResult.ErrorMessage}");
+        }
+
+        var transcript = transcriptResult.Chunks;
 
         // Store in cache
         _videoCache.TryAdd(videoUrl, (metadata, transcript, DateTime.UtcNow));
@@ -120,7 +130,8 @@ public class ContentOrchestratorService : IContentOrchestratorService
 
     [Description("Extract transcript and metadata from a YouTube video URL")]
     public async Task<string> ExtractYouTubeVideo(
-        [Description("The YouTube video URL to extract")] string videoUrl)
+        [Description("The YouTube video URL to extract")] string videoUrl,
+        CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(videoUrl))
         {
@@ -129,7 +140,7 @@ public class ContentOrchestratorService : IContentOrchestratorService
 
         try
         {
-            var (metadata, transcript) = await GetVideoDataAsync(videoUrl);
+            var (metadata, transcript) = await GetVideoDataAsync(videoUrl, cancellationToken);
 
             return $"Extracted video: {metadata.Title} by {metadata.Author}. " +
                    $"Duration: {metadata.Duration}. Transcript has {transcript.Count} segments.";
@@ -144,12 +155,13 @@ public class ContentOrchestratorService : IContentOrchestratorService
     public async Task<string> ChunkTranscriptForAnalysis(
         [Description("The YouTube video URL to process")] string videoUrl,
         [Description("Characters per chunk (default: 4000 ≈ 1000 tokens)")] int chunkSize = 4000,
-        [Description("Overlap between chunks in characters (default: 400 ≈ 100 tokens)")] int overlapSize = 400)
+        [Description("Overlap between chunks in characters (default: 400 ≈ 100 tokens)")] int overlapSize = 400,
+        CancellationToken cancellationToken = default)
     {
         try
         {
-            var (metadata, transcript) = await GetVideoDataAsync(videoUrl);
-            var chunks = await _chunkingService.ChunkTranscriptAsync(transcript, chunkSize, overlapSize);
+            var (metadata, transcript) = await GetVideoDataAsync(videoUrl, cancellationToken);
+            var chunks = await _chunkingService.ChunkTranscriptAsync(transcript, chunkSize, overlapSize, cancellationToken);
 
             var totalChars = chunks.Sum(c => c.Text.Length);
             return $"Successfully chunked video '{metadata.Title}' (Duration: {metadata.Duration})\n" +
@@ -167,12 +179,13 @@ public class ContentOrchestratorService : IContentOrchestratorService
     [Description("Generate a concise 3-5 bullet point summary of a YouTube video's content")]
     public async Task<string> SummarizeVideo(
         [Description("The YouTube video URL to summarize")] string videoUrl,
-        [Description("Maximum number of chunks to process (default: 10)")] int maxChunks = 10)
+        [Description("Maximum number of chunks to process (default: 10)")] int maxChunks = 10,
+        CancellationToken cancellationToken = default)
     {
         try
         {
-            var (metadata, transcript) = await GetVideoDataAsync(videoUrl);
-            var chunks = await _chunkingService.ChunkTranscriptAsync(transcript, 4000, 400);
+            var (metadata, transcript) = await GetVideoDataAsync(videoUrl, cancellationToken);
+            var chunks = await _chunkingService.ChunkTranscriptAsync(transcript, 4000, 400, cancellationToken);
 
             var chunksToProcess = chunks.Take(maxChunks).ToList();
             var combinedText = string.Join("\n\n", chunksToProcess.Select(c => c.Text));
@@ -215,7 +228,8 @@ Provide the summary using this markdown formatting.";
     private async Task<string> AnswerQuestionAboutDocument(
         [Description("The question to answer about the document")] string question,
         [Description("The document content chunks to use as context")] string documentContext,
-        [Description("The conversation history for maintaining context")] string conversationHistory)
+        [Description("The conversation history for maintaining context")] string conversationHistory,
+        CancellationToken cancellationToken = default)
     {
         try
         {
@@ -272,7 +286,8 @@ Example valid response:
         string question,
         List<DocumentChunk> chunks,
         string threadId,
-        List<ConversationMessage> conversationHistory)
+        List<ConversationMessage> conversationHistory,
+        CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(question))
         {
@@ -294,17 +309,17 @@ Example valid response:
             // Get or create thread from cache
             if (!_activeThreads.ContainsKey(threadId))
             {
-                var agent = await _threadManagementService.GetAgentAsync(threadId);
+                var agent = await _threadManagementService.GetAgentAsync(threadId, cancellationToken);
                 if (agent == null)
                 {
                     _logger.LogWarning("Thread {ThreadId} not found, creating new thread", threadId);
                     // Note: In a real implementation, you might want to create a new thread here
                     // For now, we'll use the orchestrator as a fallback
-                    _activeThreads[threadId] = _orchestrator;
+                    _activeThreads.TryAdd(threadId, _orchestrator);
                 }
                 else
                 {
-                    _activeThreads[threadId] = agent;
+                    _activeThreads.TryAdd(threadId, agent);
                 }
             }
 
@@ -318,7 +333,7 @@ Example valid response:
                 : string.Empty;
 
             // Call the AnswerQuestionAboutDocument tool
-            var response = await AnswerQuestionAboutDocument(question, documentContext, conversationHistoryText);
+            var response = await AnswerQuestionAboutDocument(question, documentContext, conversationHistoryText, cancellationToken);
 
             // Get the thread for the RunAsync call
             var thread = _activeThreads[threadId] as AIAgent ?? _orchestrator;
@@ -392,7 +407,7 @@ Example valid response:
         }
     }
 
-    public async Task<string> RunAsync(string input)
+    public async Task<string> RunAsync(string input, CancellationToken cancellationToken = default)
     {
         AgentRunResponse response = await _orchestrator.RunAsync(input);
         return response.Text;

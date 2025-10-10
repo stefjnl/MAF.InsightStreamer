@@ -89,7 +89,7 @@ public class DocumentController : ControllerBase
                 file.FileName, file.Length);
 
             using var fileStream = file.OpenReadStream();
-            var response = await _documentService.AnalyzeDocumentAsync(fileStream, file.FileName, analysisRequest!);
+            var response = await _documentService.AnalyzeDocumentAsync(fileStream, file.FileName, analysisRequest!, HttpContext.RequestAborted);
 
             _logger.LogInformation("Document analysis completed successfully for file: {FileName}", file.FileName);
             return Ok(response);
@@ -166,7 +166,8 @@ public class DocumentController : ControllerBase
             var result = await _questionAnswerService.AskQuestionAsync(
                 request.SessionId,
                 request.Question,
-                request.ThreadId);
+                request.ThreadId,
+                HttpContext.RequestAborted);
 
             // Map the result to the response DTO
             var response = new QuestionAnswerResponse

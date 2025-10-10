@@ -116,6 +116,124 @@ Used for testing plain text extraction functionality.";
     }
 
     [Fact]
+    public async Task ExtractTextAsync_WithNonSeekableStream_ThrowsDocumentParsingException()
+    {
+        // Arrange
+        var content = "Test content";
+        var bytes = Encoding.UTF8.GetBytes(content);
+        using var nonSeekableStream = new NonSeekableStream(new MemoryStream(bytes));
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<DocumentParsingException>(() =>
+            _service.ExtractTextAsync(nonSeekableStream, DocumentType.Markdown));
+
+        Assert.Equal(DocumentType.Markdown, exception.DocumentType);
+        Assert.Contains("Stream must be seekable", exception.InnerException?.Message);
+    }
+
+    [Fact]
+    public async Task ExtractFromPlainTextAsync_WithNonSeekableStream_ThrowsDocumentParsingException()
+    {
+        // Arrange
+        var content = "Test content";
+        var bytes = Encoding.UTF8.GetBytes(content);
+        using var nonSeekableStream = new NonSeekableStream(new MemoryStream(bytes));
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<DocumentParsingException>(() =>
+            _service.ExtractTextAsync(nonSeekableStream, DocumentType.PlainText));
+
+        Assert.Equal(DocumentType.PlainText, exception.DocumentType);
+        Assert.Contains("Stream must be seekable", exception.InnerException?.Message);
+    }
+
+    [Fact]
+    public async Task ExtractFromWordAsync_WithNonSeekableStream_ThrowsDocumentParsingException()
+    {
+        // Arrange
+        var content = "Test content";
+        var bytes = Encoding.UTF8.GetBytes(content);
+        using var nonSeekableStream = new NonSeekableStream(new MemoryStream(bytes));
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<DocumentParsingException>(() =>
+            _service.ExtractTextAsync(nonSeekableStream, DocumentType.Word));
+
+        Assert.Equal(DocumentType.Word, exception.DocumentType);
+        Assert.Contains("Stream must be seekable", exception.InnerException?.Message);
+    }
+
+    [Fact]
+    public async Task ExtractFromPdfAsync_WithNonSeekableStream_ThrowsDocumentParsingException()
+    {
+        // Arrange
+        var content = "Test content";
+        var bytes = Encoding.UTF8.GetBytes(content);
+        using var nonSeekableStream = new NonSeekableStream(new MemoryStream(bytes));
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<DocumentParsingException>(() =>
+            _service.ExtractTextAsync(nonSeekableStream, DocumentType.Pdf));
+
+        Assert.Equal(DocumentType.Pdf, exception.DocumentType);
+        Assert.Contains("Stream must be seekable", exception.InnerException?.Message);
+    }
+
+    [Fact]
+    public async Task GetPageCountAsync_WithNonSeekableStream_ThrowsDocumentParsingException()
+    {
+        // Arrange
+        var content = "Test content";
+        var bytes = Encoding.UTF8.GetBytes(content);
+        using var nonSeekableStream = new NonSeekableStream(new MemoryStream(bytes));
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<DocumentParsingException>(() =>
+            _service.GetPageCountAsync(nonSeekableStream, DocumentType.Pdf));
+
+        Assert.Equal(DocumentType.Pdf, exception.DocumentType);
+        Assert.Contains("Stream must be seekable", exception.InnerException?.Message);
+    }
+
+    /// <summary>
+    /// Helper class that wraps a stream but makes it non-seekable for testing.
+    /// </summary>
+    private class NonSeekableStream : Stream
+    {
+        private readonly Stream _innerStream;
+
+        public NonSeekableStream(Stream innerStream)
+        {
+            _innerStream = innerStream ?? throw new ArgumentNullException(nameof(innerStream));
+        }
+
+        public override bool CanRead => _innerStream.CanRead;
+        public override bool CanSeek => false;
+        public override bool CanWrite => _innerStream.CanWrite;
+        public override long Length => _innerStream.Length;
+        public override long Position
+        {
+            get => _innerStream.Position;
+            set => throw new NotSupportedException("Stream is not seekable");
+        }
+
+        public override void Flush() => _innerStream.Flush();
+        public override int Read(byte[] buffer, int offset, int count) => _innerStream.Read(buffer, offset, count);
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException("Stream is not seekable");
+        public override void SetLength(long value) => _innerStream.SetLength(value);
+        public override void Write(byte[] buffer, int offset, int count) => _innerStream.Write(buffer, offset, count);
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _innerStream.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+    }
+
+    [Fact]
     public async Task ExtractTextAsync_WithMarkdownContainingSpecialCharacters_PreservesContent()
     {
         // Arrange

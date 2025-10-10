@@ -6,6 +6,7 @@ using MAF.InsightStreamer.Application.DTOs;
 using MAF.InsightStreamer.Application.Interfaces;
 using MAF.InsightStreamer.Domain.Enums;
 using MAF.InsightStreamer.Domain.Models;
+using System.Threading;
 
 namespace MAF.InsightStreamer.Application.Services;
 
@@ -53,7 +54,7 @@ public class DocumentService : IDocumentService
     /// <param name="fileName">The name of the file being analyzed.</param>
     /// <param name="analysisRequest">The specific analysis request or question about the document.</param>
     /// <returns>A task that represents the asynchronous operation, containing the document analysis response.</returns>
-    public async Task<DocumentAnalysisResponse> AnalyzeDocumentAsync(Stream fileStream, string fileName, string analysisRequest)
+    public async Task<DocumentAnalysisResponse> AnalyzeDocumentAsync(Stream fileStream, string fileName, string analysisRequest, CancellationToken cancellationToken = default)
     {
         if (fileStream == null)
             throw new ArgumentNullException(nameof(fileStream));
@@ -68,21 +69,52 @@ public class DocumentService : IDocumentService
 
         try
         {
-            // Step 1: Determine DocumentType from fileName extension
-            var documentType = DetermineDocumentType(fileName);
-            if (documentType == DocumentType.Unknown)
+            // Step 1: Validate and sanitize inputs
+            var sanitizedFileName = SanitizeFileName(fileName);
+            if (string.IsNullOrWhiteSpace(sanitizedFileName))
             {
-                throw new NotSupportedException($"File type not supported: {Path.GetExtension(fileName)}");
+                throw new ArgumentException("File name contains invalid characters after sanitization.", nameof(fileName));
             }
 
-            // Step 2: Generate cache key from file hash
+            // Step 2: Validate stream capabilities and content
+            if (!fileStream.CanRead)
+            {
+                throw new ArgumentException("Stream must be readable.", nameof(fileStream));
+            }
+
+            if (!fileStream.CanSeek)
+            {
+                throw new ArgumentException("Stream must be seekable for document processing.", nameof(fileStream));
+            }
+
+            // Check if stream is empty
+            if (fileStream.Length == 0)
+            {
+                throw new ArgumentException("File stream is empty.", nameof(fileStream));
+            }
+
+            // Validate file size (max 50MB)
+            const long maxFileSizeBytes = 50 * 1024 * 1024; // 50MB
+            if (fileStream.Length > maxFileSizeBytes)
+            {
+                throw new ArgumentException($"File size exceeds maximum allowed size of {maxFileSizeBytes / (1024 * 1024)}MB.", nameof(fileStream));
+            }
+
+            // Step 3: Determine DocumentType from fileName extension
+            var documentType = DetermineDocumentType(sanitizedFileName);
+            if (documentType == DocumentType.Unknown)
+            {
+                throw new NotSupportedException($"File type not supported: {Path.GetExtension(sanitizedFileName)}");
+            }
+
+            // Step 4: Generate cache key from file hash
             var fileHash = await ComputeFileHashAsync(fileStream);
             var cacheKey = $"document:{fileHash}";
 
-            // Step 3: Check cache for existing analysis
+            // Step 5: Check cache for existing analysis
             if (_memoryCache.TryGetValue(cacheKey, out DocumentAnalysisResponse? cachedResponse))
             {
-                _logger.LogInformation("Returning cached analysis for file: {FileName}", fileName);
+                _logger.LogInformation("Returning cached analysis for file: {FileName}", sanitizedFileName);
                 return cachedResponse!;
             }
 
@@ -90,18 +122,18 @@ public class DocumentService : IDocumentService
             var fileSizeBytes = fileStream.Length;
             fileStream.Position = 0; // Reset stream position after reading length
 
-            // Step 4: Extract text and get page count
-            var extractedText = await _documentParserService.ExtractTextAsync(fileStream, documentType);
-            var pageCount = await _documentParserService.GetPageCountAsync(fileStream, documentType);
+            // Step 6: Extract text and get page count
+            var extractedText = await _documentParserService.ExtractTextAsync(fileStream, documentType, cancellationToken);
+            var pageCount = await _documentParserService.GetPageCountAsync(fileStream, documentType, cancellationToken);
 
             if (string.IsNullOrWhiteSpace(extractedText))
             {
                 throw new InvalidOperationException("No text could be extracted from the document.");
             }
 
-            // Step 5: Call orchestrator for AI analysis
-            var orchestratorInput = BuildOrchestratorInput(fileName, extractedText, analysisRequest);
-            var analysisResult = await _contentOrchestratorService.RunAsync(orchestratorInput);
+            // Step 7: Call orchestrator for AI analysis
+            var orchestratorInput = BuildOrchestratorInput(sanitizedFileName, extractedText, analysisRequest);
+            var analysisResult = await _contentOrchestratorService.RunAsync(orchestratorInput, cancellationToken);
 
             // Log the raw response for debugging
             _logger.LogInformation("Raw orchestrator response: {Response}", analysisResult);
@@ -109,12 +141,12 @@ public class DocumentService : IDocumentService
             // Parse the JSON response from the orchestrator
             var analysisData = ParseAnalysisResult(analysisResult, _logger);
 
-            // Step 6: Chunk the document text for Q&A processing
-            var documentChunks = await _chunkingService.ChunkDocumentAsync(extractedText);
+            // Step 8: Chunk the document text for Q&A processing
+            var documentChunks = await _chunkingService.ChunkDocumentAsync(extractedText, cancellationToken: cancellationToken);
             _logger.LogInformation("Document chunked into {ChunkCount} chunks for Q&A processing", documentChunks.Count);
 
-            // Step 7: Build DocumentAnalysisResponse with metadata
-            var metadata = new DocumentMetadata(fileName, documentType, fileSizeBytes, pageCount);
+            // Step 9: Build DocumentAnalysisResponse with metadata
+            var metadata = new DocumentMetadata(sanitizedFileName, documentType, fileSizeBytes, pageCount);
             var response = new DocumentAnalysisResponse
             {
                 Summary = analysisData.Summary,
@@ -124,7 +156,7 @@ public class DocumentService : IDocumentService
                 ProcessingTimeMs = (long)(DateTime.UtcNow - startTime).TotalMilliseconds
             };
 
-            // Step 8: Create DocumentSession after successful analysis
+            // Step 10: Create DocumentSession after successful analysis
             try
             {
                 var documentAnalysisResult = new DocumentAnalysisResult
@@ -137,33 +169,33 @@ public class DocumentService : IDocumentService
                     ProcessingTimeMs = response.ProcessingTimeMs
                 };
 
-                var documentSession = await _documentSessionService.CreateSessionAsync(documentAnalysisResult, documentChunks);
+                var documentSession = await _documentSessionService.CreateSessionAsync(documentAnalysisResult, documentChunks, cancellationToken);
                 response = response with { SessionId = documentSession.SessionId };
                 
                 _logger.LogInformation("Created document session {SessionId} for document: {FileName}",
-                    documentSession.SessionId, fileName);
+                    documentSession.SessionId, sanitizedFileName);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to create document session for document: {FileName}", fileName);
+                _logger.LogError(ex, "Failed to create document session for document: {FileName}", sanitizedFileName);
                 // Continue without session - the analysis was successful but session creation failed
                 // The response will have a default empty SessionId
             }
 
-            // Step 9: Cache result with 5-minute expiration
+            // Step 11: Cache result with 5-minute expiration
             var cacheEntryOptions = new MemoryCacheEntryOptions()
                 .SetAbsoluteExpiration(TimeSpan.FromMinutes(5));
             
             _memoryCache.Set(cacheKey, response, cacheEntryOptions);
 
             _logger.LogInformation("Successfully analyzed document: {FileName} in {ElapsedMs}ms with SessionId: {SessionId}",
-                fileName, response.ProcessingTimeMs, response.SessionId);
+                sanitizedFileName, response.ProcessingTimeMs, response.SessionId);
 
             return response;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error analyzing document: {FileName}", fileName);
+            _logger.LogError(ex, "Error analyzing document: {FileName}", SanitizeFileName(fileName));
             throw;
         }
     }
@@ -173,6 +205,44 @@ public class DocumentService : IDocumentService
     /// </summary>
     /// <param name="fileName">The name of the file.</param>
     /// <returns>The document type enum value.</returns>
+    /// <summary>
+    /// Sanitizes a file name to prevent path traversal attacks and removes invalid characters.
+    /// </summary>
+    /// <param name="fileName">The original file name.</param>
+    /// <returns>A sanitized file name safe for processing.</returns>
+    private static string SanitizeFileName(string fileName)
+    {
+        if (string.IsNullOrWhiteSpace(fileName))
+            return string.Empty;
+
+        // Remove path traversal characters and patterns
+        var sanitized = fileName
+            .Replace("..", string.Empty)
+            .Replace("\\", string.Empty)
+            .Replace("/", string.Empty)
+            .Replace(":", string.Empty)
+            .Replace("*", string.Empty)
+            .Replace("?", string.Empty)
+            .Replace("\"", string.Empty)
+            .Replace("<", string.Empty)
+            .Replace(">", string.Empty)
+            .Replace("|", string.Empty);
+
+        // Remove leading and trailing whitespace and dots
+        sanitized = sanitized.Trim().Trim('.');
+
+        // Ensure the name is not empty after sanitization
+        if (string.IsNullOrWhiteSpace(sanitized))
+            return string.Empty;
+
+        // Limit the length to prevent extremely long names
+        const int maxFileNameLength = 255;
+        if (sanitized.Length > maxFileNameLength)
+            sanitized = sanitized.Substring(0, maxFileNameLength);
+
+        return sanitized;
+    }
+
     private static DocumentType DetermineDocumentType(string fileName)
     {
         if (string.IsNullOrWhiteSpace(fileName))

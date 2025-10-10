@@ -83,10 +83,10 @@ public class ContentOrchestratorServiceTests
             }
         };
 
-        _mockYouTubeService.Setup(s => s.GetVideoMetadataAsync(videoUrl))
+        _mockYouTubeService.Setup(s => s.GetVideoMetadataAsync(videoUrl, It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedMetadata);
-        _mockYouTubeService.Setup(s => s.GetTranscriptAsync(videoUrl, "en"))
-            .ReturnsAsync(expectedTranscript);
+        _mockYouTubeService.Setup(s => s.GetTranscriptAsync(videoUrl, "en", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TranscriptResult { Success = true, Chunks = expectedTranscript });
 
         // Act
         var result = await _service.ExtractYouTubeVideo(videoUrl);
@@ -95,8 +95,8 @@ public class ContentOrchestratorServiceTests
         Assert.Contains("Extracted video: Test Video by Test Author", result);
         Assert.Contains("Duration: 00:10:00", result);
         Assert.Contains("Transcript has 2 segments", result);
-        _mockYouTubeService.Verify(s => s.GetVideoMetadataAsync(videoUrl), Times.Once);
-        _mockYouTubeService.Verify(s => s.GetTranscriptAsync(videoUrl, "en"), Times.Once);
+        _mockYouTubeService.Verify(s => s.GetVideoMetadataAsync(videoUrl, It.IsAny<CancellationToken>()), Times.Once);
+        _mockYouTubeService.Verify(s => s.GetTranscriptAsync(videoUrl, "en", It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -106,7 +106,7 @@ public class ContentOrchestratorServiceTests
         const string videoUrl = "https://www.youtube.com/watch?v=test123";
         const string errorMessage = "Video not found";
 
-        _mockYouTubeService.Setup(s => s.GetVideoMetadataAsync(videoUrl))
+        _mockYouTubeService.Setup(s => s.GetVideoMetadataAsync(videoUrl, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new Exception(errorMessage));
 
         // Act
@@ -114,7 +114,7 @@ public class ContentOrchestratorServiceTests
 
         // Assert
         Assert.Contains($"Error extracting video: {errorMessage}", result);
-        _mockYouTubeService.Verify(s => s.GetVideoMetadataAsync(videoUrl), Times.Once);
+        _mockYouTubeService.Verify(s => s.GetVideoMetadataAsync(videoUrl, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -174,9 +174,9 @@ public class ContentOrchestratorServiceTests
             ThumbnailUrl = "https://example.com/thumb.jpg"
         };
 
-        _mockYouTubeService.Setup(s => s.GetVideoMetadataAsync(videoUrl))
+        _mockYouTubeService.Setup(s => s.GetVideoMetadataAsync(videoUrl, It.IsAny<CancellationToken>()))
             .ReturnsAsync(metadata);
-        _mockYouTubeService.Setup(s => s.GetTranscriptAsync(videoUrl, "en"))
+        _mockYouTubeService.Setup(s => s.GetTranscriptAsync(videoUrl, "en", It.IsAny<CancellationToken>()))
             .ThrowsAsync(new TranscriptUnavailableException("No transcript available"));
 
         // Act
@@ -228,11 +228,11 @@ public class ContentOrchestratorServiceTests
             }
         };
 
-        _mockYouTubeService.Setup(s => s.GetVideoMetadataAsync(videoUrl))
+        _mockYouTubeService.Setup(s => s.GetVideoMetadataAsync(videoUrl, It.IsAny<CancellationToken>()))
             .ReturnsAsync(metadata);
-        _mockYouTubeService.Setup(s => s.GetTranscriptAsync(videoUrl, "en"))
-            .ReturnsAsync(transcript);
-        _mockChunkingService.Setup(s => s.ChunkTranscriptAsync(transcript, 4000, 400))
+        _mockYouTubeService.Setup(s => s.GetTranscriptAsync(videoUrl, "en", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TranscriptResult { Success = true, Chunks = transcript });
+        _mockChunkingService.Setup(s => s.ChunkTranscriptAsync(transcript, 4000, 400, It.IsAny<CancellationToken>()))
             .ReturnsAsync(chunks);
 
         // Act
@@ -245,9 +245,9 @@ public class ContentOrchestratorServiceTests
         Assert.Contains("Total characters: 71", result); // "Hello world this is a test transcript With another segment for chunking".Length
         Assert.Contains("Chunk size: 4000 chars, Overlap: 400 chars", result);
         Assert.Contains("First chunk preview: Hello world this is a test transcript With another segment for chunking...", result);
-        _mockYouTubeService.Verify(s => s.GetVideoMetadataAsync(videoUrl), Times.Once);
-        _mockYouTubeService.Verify(s => s.GetTranscriptAsync(videoUrl, "en"), Times.Once);
-        _mockChunkingService.Verify(s => s.ChunkTranscriptAsync(transcript, 4000, 400), Times.Once);
+        _mockYouTubeService.Verify(s => s.GetVideoMetadataAsync(videoUrl, It.IsAny<CancellationToken>()), Times.Once);
+        _mockYouTubeService.Verify(s => s.GetTranscriptAsync(videoUrl, "en", It.IsAny<CancellationToken>()), Times.Once);
+        _mockChunkingService.Verify(s => s.ChunkTranscriptAsync(transcript, 4000, 400, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     // TEST 1: Successful summarization
@@ -275,11 +275,11 @@ public class ContentOrchestratorServiceTests
             new() { ChunkIndex = 1, Text = "Chunk 2", StartTimeSeconds = 5, EndTimeSeconds = 10 }
         };
         
-        _mockYouTubeService.Setup(s => s.GetVideoMetadataAsync(It.IsAny<string>()))
+        _mockYouTubeService.Setup(s => s.GetVideoMetadataAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(metadata);
-        _mockYouTubeService.Setup(s => s.GetTranscriptAsync(It.IsAny<string>(), "en"))
-            .ReturnsAsync(transcript);
-        _mockChunkingService.Setup(s => s.ChunkTranscriptAsync(It.IsAny<List<TranscriptChunk>>(), It.IsAny<int>(), It.IsAny<int>()))
+        _mockYouTubeService.Setup(s => s.GetTranscriptAsync(It.IsAny<string>(), "en", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TranscriptResult { Success = true, Chunks = transcript });
+        _mockChunkingService.Setup(s => s.ChunkTranscriptAsync(It.IsAny<List<TranscriptChunk>>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(chunks);
         
         // Act
@@ -296,7 +296,7 @@ public class ContentOrchestratorServiceTests
     public async Task SummarizeVideo_WhenYouTubeServiceFails_ReturnsErrorMessage()
     {
         // Arrange
-        _mockYouTubeService.Setup(s => s.GetVideoMetadataAsync(It.IsAny<string>()))
+        _mockYouTubeService.Setup(s => s.GetVideoMetadataAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Video not found"));
         
         // Act
@@ -325,11 +325,11 @@ public class ContentOrchestratorServiceTests
             new() { ChunkIndex = 0, Text = "Test", StartTimeSeconds = 0, EndTimeSeconds = 5 }
         };
         
-        _mockYouTubeService.Setup(s => s.GetVideoMetadataAsync(It.IsAny<string>()))
+        _mockYouTubeService.Setup(s => s.GetVideoMetadataAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(metadata);
-        _mockYouTubeService.Setup(s => s.GetTranscriptAsync(It.IsAny<string>(), "en"))
-            .ReturnsAsync(transcript);
-        _mockChunkingService.Setup(s => s.ChunkTranscriptAsync(It.IsAny<List<TranscriptChunk>>(), It.IsAny<int>(), It.IsAny<int>()))
+        _mockYouTubeService.Setup(s => s.GetTranscriptAsync(It.IsAny<string>(), "en", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TranscriptResult { Success = true, Chunks = transcript });
+        _mockChunkingService.Setup(s => s.ChunkTranscriptAsync(It.IsAny<List<TranscriptChunk>>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new ArgumentException("Invalid chunk size"));
         
         // Act
@@ -369,11 +369,11 @@ public class ContentOrchestratorServiceTests
             })
             .ToList();
         
-        _mockYouTubeService.Setup(s => s.GetVideoMetadataAsync(It.IsAny<string>()))
+        _mockYouTubeService.Setup(s => s.GetVideoMetadataAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(metadata);
-        _mockYouTubeService.Setup(s => s.GetTranscriptAsync(It.IsAny<string>(), "en"))
-            .ReturnsAsync(transcript);
-        _mockChunkingService.Setup(s => s.ChunkTranscriptAsync(It.IsAny<List<TranscriptChunk>>(), It.IsAny<int>(), It.IsAny<int>()))
+        _mockYouTubeService.Setup(s => s.GetTranscriptAsync(It.IsAny<string>(), "en", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TranscriptResult { Success = true, Chunks = transcript });
+        _mockChunkingService.Setup(s => s.ChunkTranscriptAsync(It.IsAny<List<TranscriptChunk>>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(chunks);
         
         // Act

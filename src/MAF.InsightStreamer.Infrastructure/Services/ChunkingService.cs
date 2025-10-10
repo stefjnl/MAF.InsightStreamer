@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 /// <summary>
@@ -35,12 +36,11 @@ public class ChunkingService : IChunkingService
     /// <returns>List of chunked transcript segments with preserved timestamps</returns>
     /// <exception cref="ArgumentNullException">Thrown when the transcript is null.</exception>
     /// <exception cref="ArgumentException">Thrown when chunkSize is less than or equal to zero, or overlapSize is negative, or overlapSize is greater than or equal to chunkSize.</exception>
-#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
-    public async Task<List<TranscriptChunk>> ChunkTranscriptAsync(
+    public Task<List<TranscriptChunk>> ChunkTranscriptAsync(
         List<TranscriptChunk> transcript,
         int chunkSize = 4000,
-        int overlapSize = 400)
-#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
+        int overlapSize = 400,
+        CancellationToken cancellationToken = default)
     {
         // Validate inputs
         if (transcript == null)
@@ -71,7 +71,7 @@ public class ChunkingService : IChunkingService
         if (transcript.Count == 0)
         {
             _logger.LogWarning("Empty transcript provided, returning empty chunk list");
-            return new List<TranscriptChunk>();
+            return Task.FromResult(new List<TranscriptChunk>());
         }
 
         _logger.LogInformation("Chunking transcript with {TranscriptCount} segments, chunk size: {ChunkSize}, overlap size: {OverlapSize}", transcript.Count, chunkSize, overlapSize);
@@ -129,7 +129,7 @@ public class ChunkingService : IChunkingService
             };
             
             _logger.LogInformation("Text length ({TextLength}) is smaller than chunk size ({ChunkSize}), returning single chunk", text.Length, chunkSize);
-            return result;
+            return Task.FromResult(result);
         }
 
         // Apply sliding window algorithm
@@ -169,7 +169,7 @@ public class ChunkingService : IChunkingService
         }
 
         _logger.LogInformation("Successfully chunked transcript into {ChunkCount} chunks", chunks.Count);
-        return chunks;
+        return Task.FromResult(chunks);
     }
 
     /// <summary>
@@ -181,12 +181,11 @@ public class ChunkingService : IChunkingService
     /// <returns>List of document chunks with position information</returns>
     /// <exception cref="ArgumentNullException">Thrown when the documentText is null.</exception>
     /// <exception cref="ArgumentException">Thrown when chunkSize is less than or equal to zero, or overlapSize is negative, or overlapSize is greater than or equal to chunkSize.</exception>
-#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
-    public async Task<List<DocumentChunk>> ChunkDocumentAsync(
+    public Task<List<DocumentChunk>> ChunkDocumentAsync(
         string documentText,
         int chunkSize = 4000,
-        int overlapSize = 400)
-#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
+        int overlapSize = 400,
+        CancellationToken cancellationToken = default)
     {
         // Validate inputs
         if (documentText == null)
@@ -217,7 +216,7 @@ public class ChunkingService : IChunkingService
         if (string.IsNullOrWhiteSpace(documentText))
         {
             _logger.LogWarning("Empty document text provided, returning empty chunk list");
-            return new List<DocumentChunk>();
+            return Task.FromResult(new List<DocumentChunk>());
         }
 
         _logger.LogInformation("Chunking document with text length: {TextLength}, chunk size: {ChunkSize}, overlap size: {OverlapSize}", documentText.Length, chunkSize, overlapSize);
@@ -237,7 +236,7 @@ public class ChunkingService : IChunkingService
             };
             
             _logger.LogInformation("Text length ({TextLength}) is smaller than chunk size ({ChunkSize}), returning single chunk", documentText.Length, chunkSize);
-            return result;
+            return Task.FromResult(result);
         }
 
         // Apply sliding window algorithm
@@ -273,6 +272,6 @@ public class ChunkingService : IChunkingService
         }
 
         _logger.LogInformation("Successfully chunked document into {ChunkCount} chunks", chunks.Count);
-        return chunks;
+        return Task.FromResult(chunks);
     }
 }

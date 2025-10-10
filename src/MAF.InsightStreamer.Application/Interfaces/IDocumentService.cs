@@ -1,4 +1,6 @@
 using MAF.InsightStreamer.Application.DTOs;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace MAF.InsightStreamer.Application.Interfaces;
 
@@ -13,6 +15,7 @@ public interface IDocumentService
     /// <param name="fileStream">The stream containing the document data.</param>
     /// <param name="fileName">The name of the file being analyzed.</param>
     /// <param name="analysisRequest">The specific analysis request or question about the document.</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation</param>
     /// <returns>A task that represents the asynchronous operation, containing the document analysis response.</returns>
-    Task<DocumentAnalysisResponse> AnalyzeDocumentAsync(Stream fileStream, string fileName, string analysisRequest);
+    Task<DocumentAnalysisResponse> AnalyzeDocumentAsync(Stream fileStream, string fileName, string analysisRequest, CancellationToken cancellationToken = default);
 }

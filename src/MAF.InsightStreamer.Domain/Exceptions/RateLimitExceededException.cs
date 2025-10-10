@@ -21,7 +21,27 @@ public class RateLimitExceededException : Exception
     public int CurrentQuestionCount { get; }
 
     /// <summary>
-    /// Initializes a new instance of the RateLimitExceededException class.
+    /// Gets the maximum number of tokens allowed per session.
+    /// </summary>
+    public int MaxTokensPerSession { get; }
+
+    /// <summary>
+    /// Gets the current number of tokens used in the session.
+    /// </summary>
+    public long CurrentTokensUsed { get; }
+
+    /// <summary>
+    /// Gets a value indicating whether the rate limit was exceeded due to question count.
+    /// </summary>
+    public bool IsQuestionLimitExceeded { get; }
+
+    /// <summary>
+    /// Gets a value indicating whether the rate limit was exceeded due to token usage.
+    /// </summary>
+    public bool IsTokenLimitExceeded { get; }
+
+    /// <summary>
+    /// Initializes a new instance of the RateLimitExceededException class for question limit.
     /// </summary>
     /// <param name="sessionId">The session ID that exceeded the rate limit.</param>
     /// <param name="maxQuestionsPerSession">The maximum number of questions allowed per session.</param>
@@ -32,6 +52,24 @@ public class RateLimitExceededException : Exception
         SessionId = sessionId;
         MaxQuestionsPerSession = maxQuestionsPerSession;
         CurrentQuestionCount = currentQuestionCount;
+        IsQuestionLimitExceeded = true;
+        IsTokenLimitExceeded = false;
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the RateLimitExceededException class for token limit.
+    /// </summary>
+    /// <param name="sessionId">The session ID that exceeded the rate limit.</param>
+    /// <param name="maxTokensPerSession">The maximum number of tokens allowed per session.</param>
+    /// <param name="currentTokensUsed">The current number of tokens used in the session.</param>
+    public RateLimitExceededException(Guid sessionId, int maxTokensPerSession, long currentTokensUsed)
+        : base($"Token limit exceeded for session '{sessionId}'. Maximum of {maxTokensPerSession:N0} tokens allowed, but {currentTokensUsed:N0} have been used.")
+    {
+        SessionId = sessionId;
+        MaxTokensPerSession = maxTokensPerSession;
+        CurrentTokensUsed = currentTokensUsed;
+        IsQuestionLimitExceeded = false;
+        IsTokenLimitExceeded = true;
     }
 
     /// <summary>
@@ -47,6 +85,8 @@ public class RateLimitExceededException : Exception
         SessionId = sessionId;
         MaxQuestionsPerSession = maxQuestionsPerSession;
         CurrentQuestionCount = currentQuestionCount;
+        IsQuestionLimitExceeded = true;
+        IsTokenLimitExceeded = false;
     }
 
     /// <summary>
@@ -63,5 +103,7 @@ public class RateLimitExceededException : Exception
         SessionId = sessionId;
         MaxQuestionsPerSession = maxQuestionsPerSession;
         CurrentQuestionCount = currentQuestionCount;
+        IsQuestionLimitExceeded = true;
+        IsTokenLimitExceeded = false;
     }
 }

@@ -1,4 +1,6 @@
 using MAF.InsightStreamer.Domain.Models;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace MAF.InsightStreamer.Application.Interfaces;
 
@@ -14,6 +16,7 @@ public interface IQuestionAnswerService
     /// <param name="sessionId">The unique identifier for the document session.</param>
     /// <param name="question">The question to ask about the document.</param>
     /// <param name="threadId">Optional thread identifier for maintaining conversation context. If null, a new thread will be created.</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation</param>
     /// <returns>A QuestionAnswerResult containing the answer and relevant context.</returns>
     /// <exception cref="Domain.Exceptions.SessionNotFoundException">Thrown when the session is not found.</exception>
     /// <exception cref="Domain.Exceptions.SessionExpiredException">Thrown when the session has expired.</exception>
@@ -22,5 +25,6 @@ public interface IQuestionAnswerService
     Task<QuestionAnswerResult> AskQuestionAsync(
         Guid sessionId,
         string question,
-        string? threadId = null);
+        string? threadId = null,
+        CancellationToken cancellationToken = default);
 }

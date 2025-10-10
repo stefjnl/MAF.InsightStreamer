@@ -2,6 +2,7 @@ namespace MAF.InsightStreamer.Application.Interfaces;
 
 using MAF.InsightStreamer.Domain.Models;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 /// <summary>
@@ -20,7 +21,8 @@ public interface IChunkingService
     Task<List<TranscriptChunk>> ChunkTranscriptAsync(
         List<TranscriptChunk> transcript,
         int chunkSize = 4000,
-        int overlapSize = 400);
+        int overlapSize = 400,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Splits document text into overlapping chunks for Q&A processing.
@@ -32,5 +34,6 @@ public interface IChunkingService
     Task<List<DocumentChunk>> ChunkDocumentAsync(
         string documentText,
         int chunkSize = 4000,
-        int overlapSize = 400);
+        int overlapSize = 400,
+        CancellationToken cancellationToken = default);
 }

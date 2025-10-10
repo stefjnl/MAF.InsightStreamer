@@ -6,6 +6,7 @@ using MAF.InsightStreamer.Application.Interfaces;
 using MAF.InsightStreamer.Domain.Enums;
 using MAF.InsightStreamer.Domain.Exceptions;
 using MAF.InsightStreamer.Domain.Models;
+using System.Threading;
 
 namespace MAF.InsightStreamer.Application.Services;
 
@@ -47,14 +48,15 @@ public class QuestionAnswerService : IQuestionAnswerService
     public async Task<QuestionAnswerResult> AskQuestionAsync(
         Guid sessionId,
         string question,
-        string? threadId = null)
+        string? threadId = null,
+        CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Processing question for session {SessionId}, thread {ThreadId}", sessionId, threadId);
 
         try
         {
             // Validate sessionId exists and retrieve DocumentSession
-            var documentSession = await _documentSessionService.GetSessionAsync(sessionId);
+            var documentSession = await _documentSessionService.GetSessionAsync(sessionId, cancellationToken);
             if (documentSession == null)
             {
                 _logger.LogWarning("Session {SessionId} not found", sessionId);
@@ -68,13 +70,24 @@ public class QuestionAnswerService : IQuestionAnswerService
                 throw new SessionExpiredException(sessionId, documentSession.ExpiresAt);
             }
 
-            // Check rate limiting
+            // Check rate limiting - question count
             var userQuestionCount = documentSession.ConversationHistory.Count(m => m.Role == MessageRole.User);
             if (userQuestionCount >= _settings.MaxQuestionsPerSession)
             {
-                _logger.LogWarning("Rate limit exceeded for session {SessionId}. Current: {Current}, Max: {Max}", 
+                _logger.LogWarning("Question rate limit exceeded for session {SessionId}. Current: {Current}, Max: {Max}",
                     sessionId, userQuestionCount, _settings.MaxQuestionsPerSession);
                 throw new RateLimitExceededException(sessionId, _settings.MaxQuestionsPerSession, userQuestionCount);
+            }
+
+            // Check rate limiting - token usage
+            var estimatedTokensForThisQuestion = _settings.EstimatedTokensPerQuestion + _settings.EstimatedTokensPerAnswer;
+            var estimatedTotalTokensAfterThisQuestion = documentSession.TotalTokensUsed + estimatedTokensForThisQuestion;
+            
+            if (estimatedTotalTokensAfterThisQuestion > _settings.MaxTokensPerSession)
+            {
+                _logger.LogWarning("Token rate limit exceeded for session {SessionId}. Current: {Current:N0}, Estimated after question: {Estimated:N0}, Max: {Max:N0}",
+                    sessionId, documentSession.TotalTokensUsed, estimatedTotalTokensAfterThisQuestion, _settings.MaxTokensPerSession);
+                throw new RateLimitExceededException(sessionId, _settings.MaxTokensPerSession, documentSession.TotalTokensUsed);
             }
 
             // Handle thread management
@@ -82,13 +95,13 @@ public class QuestionAnswerService : IQuestionAnswerService
             if (string.IsNullOrEmpty(threadId))
             {
                 // Create new thread for this session
-                actualThreadId = await _threadManagementService.CreateThreadForDocumentAsync(sessionId);
+                actualThreadId = await _threadManagementService.CreateThreadForDocumentAsync(sessionId, cancellationToken);
                 _logger.LogInformation("Created new thread {ThreadId} for session {SessionId}", actualThreadId, sessionId);
             }
             else
             {
                 // Validate existing thread matches the session
-                var existingThread = await _threadManagementService.GetThreadAsync(threadId);
+                var existingThread = await _threadManagementService.GetThreadAsync(threadId, cancellationToken);
                 if (existingThread == null)
                 {
                     _logger.LogWarning("Thread {ThreadId} not found", threadId);
@@ -114,7 +127,12 @@ public class QuestionAnswerService : IQuestionAnswerService
                 question,
                 documentSession.DocumentChunks,
                 actualThreadId,
-                conversationHistory);
+                conversationHistory,
+                cancellationToken);
+
+            // Estimate actual tokens used and update session
+            var actualTokensUsed = EstimateTokensFromText(question) + EstimateTokensFromText(orchestratorResponse);
+            documentSession.TotalTokensUsed += actualTokensUsed;
 
             // Parse orchestrator response (JSON with answer + chunk indices)
             string answer;
@@ -195,11 +213,12 @@ public class QuestionAnswerService : IQuestionAnswerService
             var assistantMessage = new ConversationMessage(MessageRole.Assistant, answer, relevantChunkIndices);
             documentSession.ConversationHistory.Add(assistantMessage);
 
-            // Update DocumentSession with new messages
-            await _documentSessionService.UpdateSessionExpirationAsync(sessionId);
+            // Update DocumentSession with new messages and token usage
+            await _documentSessionService.UpdateSessionExpirationAsync(sessionId, cancellationToken);
 
-            // Refresh session expiration
-            _logger.LogInformation("Updated expiration for session {SessionId}", sessionId);
+            // Refresh session expiration and log token usage
+            _logger.LogInformation("Updated expiration for session {SessionId}. Total tokens used: {TotalTokens:N0}",
+                sessionId, documentSession.TotalTokensUsed);
 
             // Build and return QuestionAnswerResult
             var result = new QuestionAnswerResult(
@@ -277,5 +296,21 @@ public class QuestionAnswerService : IQuestionAnswerService
             _logger.LogDebug(ex, "Failed to clean JSON response, returning original");
             return response;
         }
+    }
+
+    /// <summary>
+    /// Estimates the number of tokens in a text string.
+    /// This is a rough approximation - actual tokenization depends on the model used.
+    /// </summary>
+    /// <param name="text">The text to estimate tokens for.</param>
+    /// <returns>Estimated number of tokens.</returns>
+    private static int EstimateTokensFromText(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return 0;
+
+        // Rough estimation: approximately 4 characters per token for English text
+        // This is a conservative estimate that works reasonably well for most models
+        return (int)Math.Ceiling(text.Length / 4.0);
     }
 }

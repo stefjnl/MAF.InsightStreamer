@@ -2,6 +2,7 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using MAF.InsightStreamer.Application.Interfaces;
 using MAF.InsightStreamer.Domain.Models;
+using System.Threading;
 
 namespace MAF.InsightStreamer.Infrastructure.Services;
 
@@ -40,7 +41,7 @@ public class DocumentSessionService : IDocumentSessionService
     /// <param name="chunks">The list of document chunks for Q&A reference.</param>
     /// <returns>A new DocumentSession instance.</returns>
     /// <exception cref="ArgumentNullException">Thrown when analysisResult or chunks is null.</exception>
-    public async Task<DocumentSession> CreateSessionAsync(DocumentAnalysisResult analysisResult, List<DocumentChunk> chunks)
+    public async Task<DocumentSession> CreateSessionAsync(DocumentAnalysisResult analysisResult, List<DocumentChunk> chunks, CancellationToken cancellationToken = default)
     {
         if (analysisResult == null)
         {
@@ -68,7 +69,7 @@ public class DocumentSessionService : IDocumentSessionService
         _memoryCache.Set(cacheKey, session, cacheEntryOptions);
 
         // Create a thread for this session
-        await _threadManagementService.CreateThreadForDocumentAsync(session.SessionId);
+        await _threadManagementService.CreateThreadForDocumentAsync(session.SessionId, cancellationToken);
 
         _logger.LogInformation("Successfully created document session with ID: {SessionId}", session.SessionId);
         return session;
@@ -79,7 +80,7 @@ public class DocumentSessionService : IDocumentSessionService
     /// </summary>
     /// <param name="sessionId">The unique identifier for the session.</param>
     /// <returns>The DocumentSession if found, null otherwise.</returns>
-    public Task<DocumentSession?> GetSessionAsync(Guid sessionId)
+    public Task<DocumentSession?> GetSessionAsync(Guid sessionId, CancellationToken cancellationToken = default)
     {
         if (sessionId == Guid.Empty)
         {
@@ -104,7 +105,7 @@ public class DocumentSessionService : IDocumentSessionService
     /// </summary>
     /// <param name="sessionId">The unique identifier for the session to update.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    public async Task UpdateSessionExpirationAsync(Guid sessionId)
+    public async Task UpdateSessionExpirationAsync(Guid sessionId, CancellationToken cancellationToken = default)
     {
         if (sessionId == Guid.Empty)
         {
@@ -136,7 +137,7 @@ public class DocumentSessionService : IDocumentSessionService
             _logger.LogWarning("Attempted to update expiration for non-existent session with ID: {SessionId}", sessionId);
         }
 
-        await Task.CompletedTask;
+        return;
     }
 
     /// <summary>
@@ -144,7 +145,7 @@ public class DocumentSessionService : IDocumentSessionService
     /// </summary>
     /// <param name="sessionId">The unique identifier for the session to remove.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    public async Task RemoveSessionAsync(Guid sessionId)
+    public async Task RemoveSessionAsync(Guid sessionId, CancellationToken cancellationToken = default)
     {
         if (sessionId == Guid.Empty)
         {
@@ -163,7 +164,7 @@ public class DocumentSessionService : IDocumentSessionService
                 
                 // Remove the associated thread if it exists
                 var threadId = $"{sessionId}";
-                await _threadManagementService.RemoveThreadAsync(threadId);
+                await _threadManagementService.RemoveThreadAsync(threadId, cancellationToken);
                 
                 _logger.LogInformation("Successfully removed session with ID: {SessionId}", sessionId);
             }
@@ -182,24 +183,27 @@ public class DocumentSessionService : IDocumentSessionService
     /// <param name="value">The value that was evicted.</param>
     /// <param name="reason">The reason for eviction.</param>
     /// <param name="state">The state object.</param>
-    private async void OnSessionEvicted(object key, object? value, EvictionReason reason, object? state)
+    private void OnSessionEvicted(object key, object? value, EvictionReason reason, object? state)
     {
         if (value is DocumentSession session)
         {
-            _logger.LogInformation("Session evicted from cache with ID: {SessionId}, Reason: {Reason}", 
+            _logger.LogInformation("Session evicted from cache with ID: {SessionId}, Reason: {Reason}",
                 session.SessionId, reason);
 
-            // Remove the associated thread
+            // Remove the associated thread using fire-and-forget with proper exception handling
             var threadId = $"{session.SessionId}";
-            try
+            _ = Task.Run(async () =>
             {
-                await _threadManagementService.RemoveThreadAsync(threadId);
-                _logger.LogDebug("Successfully removed thread for evicted session: {SessionId}", session.SessionId);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error removing thread for evicted session: {SessionId}", session.SessionId);
-            }
+                try
+                {
+                    await _threadManagementService.RemoveThreadAsync(threadId, default);
+                    _logger.LogDebug("Successfully removed thread for evicted session: {SessionId}", session.SessionId);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error removing thread for evicted session: {SessionId}", session.SessionId);
+                }
+            });
         }
     }
 

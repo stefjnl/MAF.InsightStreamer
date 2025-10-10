@@ -31,6 +31,11 @@ public class DocumentSession
     public List<ConversationMessage> ConversationHistory { get; set; } = new();
 
     /// <summary>
+    /// Gets or sets the total tokens used in this session.
+    /// </summary>
+    public long TotalTokensUsed { get; set; } = 0;
+
+    /// <summary>
     /// Gets or sets the timestamp when this session was created.
     /// </summary>
     public DateTime CreatedAt { get; set; }

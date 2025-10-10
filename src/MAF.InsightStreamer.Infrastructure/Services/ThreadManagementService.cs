@@ -9,6 +9,7 @@ using System.ClientModel;
 using OpenAI.Chat;
 using System.Linq;
 using System.Collections.Concurrent;
+using System.Threading;
 using MAF.InsightStreamer.Infrastructure.Providers;
 
 namespace MAF.InsightStreamer.Infrastructure.Services;
@@ -46,7 +47,7 @@ public class ThreadManagementService : IThreadManagementService
     /// <param name="sessionId">The unique identifier for the document session</param>
     /// <returns>A unique thread identifier</returns>
     /// <exception cref="ArgumentException">Thrown when sessionId is empty</exception>
-    public async Task<string> CreateThreadForDocumentAsync(Guid sessionId)
+    public async Task<string> CreateThreadForDocumentAsync(Guid sessionId, CancellationToken cancellationToken = default)
     {
         if (sessionId == Guid.Empty)
         {
@@ -91,7 +92,7 @@ public class ThreadManagementService : IThreadManagementService
     /// <param name="threadId">The thread identifier</param>
     /// <returns>ConversationThread instance if found, null otherwise</returns>
     /// <exception cref="ArgumentException">Thrown when threadId is null or empty</exception>
-    public async Task<ConversationThread?> GetThreadAsync(string threadId)
+    public async Task<ConversationThread?> GetThreadAsync(string threadId, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(threadId))
         {
@@ -118,7 +119,7 @@ public class ThreadManagementService : IThreadManagementService
     /// </summary>
     /// <param name="threadId">The thread identifier to remove</param>
     /// <exception cref="ArgumentException">Thrown when threadId is null or empty</exception>
-    public async Task RemoveThreadAsync(string threadId)
+    public async Task RemoveThreadAsync(string threadId, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(threadId))
         {
@@ -154,7 +155,7 @@ public class ThreadManagementService : IThreadManagementService
     /// <param name="threadId">The thread identifier</param>
     /// <returns>The AIAgent instance if found, null otherwise</returns>
     /// <exception cref="ArgumentException">Thrown when threadId is null or empty</exception>
-    public async Task<object?> GetAgentAsync(string threadId)
+    public async Task<object?> GetAgentAsync(string threadId, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(threadId))
         {
