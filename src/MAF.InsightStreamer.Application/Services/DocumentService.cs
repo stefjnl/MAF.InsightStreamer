@@ -95,8 +95,8 @@ public class DocumentService : IDocumentService
             var orchestratorInput = BuildOrchestratorInput(fileName, extractedText, analysisRequest);
             var analysisResult = await _contentOrchestratorService.RunAsync(orchestratorInput);
 
-            // Parse the analysis result
-            var analysisData = ParseAnalysisResult(analysisResult);
+            // Parse the JSON response from the orchestrator
+            var analysisData = ParseAnalysisResult(analysisResult, _logger);
 
             // Step 6: Build DocumentAnalysisResponse with metadata
             var metadata = new DocumentMetadata(fileName, documentType, fileSizeBytes, pageCount);
@@ -179,19 +179,51 @@ public class DocumentService : IDocumentService
     }
 
     /// <summary>
-    /// Parses the analysis result from the orchestrator.
+    /// Parses the JSON analysis result from the orchestrator.
+    /// </summary>
+    /// <param name="analysisResult">The raw JSON analysis result string.</param>
+    /// <param name="logger">The logger instance for recording parsing events.</param>
+    /// <returns>A tuple containing the summary and key points.</returns>
+    private (string Summary, List<string> KeyPoints) ParseAnalysisResult(string analysisResult, ILogger logger)
+    {
+        try
+        {
+            var options = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            };
+            
+            var jsonResponse = JsonSerializer.Deserialize<OrchestratorAnalysisResult>(analysisResult, options);
+            
+            if (jsonResponse == null)
+            {
+                logger.LogWarning("Failed to deserialize orchestrator response, using fallback parsing");
+                return FallbackParsing(analysisResult);
+            }
+
+            return (jsonResponse.Summary, jsonResponse.KeyPoints);
+        }
+        catch (JsonException ex)
+        {
+            logger.LogWarning(ex, "JSON parsing failed for orchestrator response, using fallback parsing");
+            return FallbackParsing(analysisResult);
+        }
+    }
+
+    /// <summary>
+    /// Fallback parsing method when structured JSON parsing fails.
     /// </summary>
     /// <param name="analysisResult">The raw analysis result string.</param>
     /// <returns>A tuple containing the summary and key points.</returns>
-    private static (string Summary, List<string> KeyPoints) ParseAnalysisResult(string analysisResult)
+    private static (string Summary, List<string> KeyPoints) FallbackParsing(string analysisResult)
     {
         try
         {
             using var document = JsonDocument.Parse(analysisResult);
             var root = document.RootElement;
 
-            var summary = root.TryGetProperty("summary", out var summaryElement) 
-                ? summaryElement.GetString() ?? string.Empty 
+            var summary = root.TryGetProperty("summary", out var summaryElement)
+                ? summaryElement.GetString() ?? string.Empty
                 : string.Empty;
 
             var keyPoints = new List<string>();
@@ -211,7 +243,7 @@ public class DocumentService : IDocumentService
         }
         catch (JsonException)
         {
-            // If JSON parsing fails, return the raw result as summary
+            // If all JSON parsing fails, return the raw result as summary
             return (analysisResult, new List<string>());
         }
     }
