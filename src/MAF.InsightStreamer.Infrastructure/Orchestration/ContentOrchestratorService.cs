@@ -9,7 +9,9 @@ using System.ComponentModel;
 using System.Text.Json;
 using System.Threading;
 using MAF.InsightStreamer.Application.Interfaces;
+using MAF.InsightStreamer.Domain.Enums;
 using MAF.InsightStreamer.Domain.Models;
+using MAF.InsightStreamer.Infrastructure.Configuration;
 using MAF.InsightStreamer.Infrastructure.Providers;
 
 namespace MAF.InsightStreamer.Infrastructure.Orchestration;
@@ -19,8 +21,12 @@ public class ContentOrchestratorService : IContentOrchestratorService
     private readonly IYouTubeService _youtubeService;
     private readonly IChunkingService _chunkingService;
     private readonly IThreadManagementService _threadManagementService;
-    private readonly AIAgent _orchestrator;
+    private AIAgent _orchestrator;
     private readonly ILogger<ContentOrchestratorService> _logger;
+    private readonly IChatClientFactory _clientFactory;
+    private ProviderConfiguration _currentConfig;
+    private readonly object _agentLock = new();
+    private readonly string _instructions = "You coordinate content analysis workflows. Use available tools to extract, chunk, and summarize content.";
     
     // Cache for video data with 5-minute expiration
     private readonly ConcurrentDictionary<string, (VideoMetadata metadata, List<TranscriptChunk> transcript, DateTime timestamp)> _videoCache;
@@ -34,29 +40,28 @@ public class ContentOrchestratorService : IContentOrchestratorService
         IYouTubeService youtubeService,
         IChunkingService chunkingService,
         IThreadManagementService threadManagementService,
-        ILogger<ContentOrchestratorService> logger)
+        ILogger<ContentOrchestratorService> logger,
+        IChatClientFactory clientFactory)
     {
         _youtubeService = youtubeService;
         _chunkingService = chunkingService;
         _threadManagementService = threadManagementService;
         _logger = logger;
+        _clientFactory = clientFactory;
         _videoCache = new ConcurrentDictionary<string, (VideoMetadata, List<TranscriptChunk>, DateTime)>();
         _activeThreads = new ConcurrentDictionary<string, object>();
 
-        var config = settings.Value;
+        // Convert legacy settings to new config
+        var legacyConfig = settings.Value;
+        _currentConfig = new ProviderConfiguration
+        {
+            Provider = ModelProvider.OpenRouter,
+            ApiKey = legacyConfig.ApiKey,
+            Endpoint = legacyConfig.Endpoint,
+            Model = legacyConfig.Model
+        };
 
-        // Create ChatClient
-        ChatClient chatClient = new(
-            model: config.Model,
-            credential: new ApiKeyCredential(config.ApiKey),
-            options: new OpenAI.OpenAIClientOptions
-            {
-                Endpoint = new Uri(config.Endpoint)
-            }
-        );
-
-        // Convert to IChatClient
-        IChatClient client = chatClient.AsIChatClient();
+        var client = _clientFactory.CreateClient(_currentConfig);
 
         // Create orchestrator with ALL tools registered
         _orchestrator = new ChatClientAgent(
@@ -64,7 +69,7 @@ public class ContentOrchestratorService : IContentOrchestratorService
             new ChatClientAgentOptions
             {
                 Name = "ContentOrchestratorAgent",
-                Instructions = "You coordinate content analysis workflows. Use available tools to extract, chunk, and summarize content.",
+                Instructions = _instructions,
                 ChatOptions = new ChatOptions
                 {
                     Tools = [
@@ -409,8 +414,60 @@ Example valid response:
 
     public async Task<string> RunAsync(string input, CancellationToken cancellationToken = default)
     {
-        AgentRunResponse response = await _orchestrator.RunAsync(input);
+        AIAgent agent;
+        lock (_agentLock)
+        {
+            agent = _orchestrator;  // Get reference inside lock
+        }
+
+        var response = await agent.RunAsync(input, cancellationToken: cancellationToken);
         return response.Text;
+    }
+
+    public void SwitchProvider(ModelProvider provider, string model, string endpoint, string? apiKey)
+    {
+        lock (_agentLock)
+        {
+            var newConfig = new ProviderConfiguration
+            {
+                Provider = provider,
+                Model = model,
+                Endpoint = endpoint,
+                ApiKey = apiKey
+            };
+
+            _logger.LogInformation(
+                "Switching from {OldProvider} to {NewProvider} with model {Model}",
+                _currentConfig.Provider, newConfig.Provider, newConfig.Model);
+
+            var newClient = _clientFactory.CreateClient(newConfig);
+            
+            // Recreate agent with new client
+            _orchestrator = new ChatClientAgent(
+                newClient,
+                new ChatClientAgentOptions
+                {
+                    Name = "ContentOrchestrator",
+                    Instructions = _instructions,  // Preserve instructions
+                    ChatOptions = GetChatOptions()     // Preserve tools
+                }
+            );
+
+            _currentConfig = newConfig;
+        }
+    }
+
+    private ChatOptions GetChatOptions()
+    {
+        return new ChatOptions
+        {
+            Tools = [
+                AIFunctionFactory.Create(ExtractYouTubeVideo),
+                AIFunctionFactory.Create(ChunkTranscriptForAnalysis),
+                AIFunctionFactory.Create(SummarizeVideo),
+                AIFunctionFactory.Create(AnswerQuestionAboutDocument)
+            ]
+        };
     }
 
     /// <summary>

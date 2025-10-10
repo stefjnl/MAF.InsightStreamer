@@ -1,0 +1,1 @@
+public record SwitchModelRequest(ModelProvider Provider, string Model);
