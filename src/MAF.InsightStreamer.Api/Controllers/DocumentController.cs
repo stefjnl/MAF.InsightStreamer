@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using MAF.InsightStreamer.Application.DTOs;
 using MAF.InsightStreamer.Application.Interfaces;
+using MAF.InsightStreamer.Domain.Enums;
+using MAF.InsightStreamer.Domain.Exceptions;
 
 namespace MAF.InsightStreamer.Api.Controllers;
 
@@ -12,18 +14,22 @@ namespace MAF.InsightStreamer.Api.Controllers;
 public class DocumentController : ControllerBase
 {
     private readonly IDocumentService _documentService;
+    private readonly IQuestionAnswerService _questionAnswerService;
     private readonly ILogger<DocumentController> _logger;
 
     /// <summary>
     /// Initializes a new instance of the DocumentController class.
     /// </summary>
     /// <param name="documentService">The document analysis service.</param>
+    /// <param name="questionAnswerService">The question answering service for conversational document queries.</param>
     /// <param name="logger">The logger for the controller.</param>
     public DocumentController(
         IDocumentService documentService,
+        IQuestionAnswerService questionAnswerService,
         ILogger<DocumentController> logger)
     {
         _documentService = documentService ?? throw new ArgumentNullException(nameof(documentService));
+        _questionAnswerService = questionAnswerService ?? throw new ArgumentNullException(nameof(questionAnswerService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -116,5 +122,93 @@ public class DocumentController : ControllerBase
     {
         var supportedTypes = new[] { "pdf", "docx", "md", "txt" };
         return Ok(supportedTypes);
+    }
+
+    /// <summary>
+    /// Asks a question about a previously analyzed document in a conversational context.
+    /// </summary>
+    /// <param name="request">The question request containing session ID, question, and optional thread ID.</param>
+    /// <returns>The answer to the question along with conversation context.</returns>
+    [HttpPost("ask")]
+    [ProducesResponseType(typeof(QuestionAnswerResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status410Gone)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> AskQuestion([FromBody] AskQuestionRequest request)
+    {
+        try
+        {
+            // Validate request
+            if (request == null)
+            {
+                _logger.LogWarning("Ask question attempted with null request");
+                return BadRequest("Request body is required.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Question))
+            {
+                _logger.LogWarning("Ask question attempted with empty question for session: {SessionId}", request.SessionId);
+                return BadRequest("Question cannot be empty.");
+            }
+
+            if (request.SessionId == Guid.Empty)
+            {
+                _logger.LogWarning("Ask question attempted with invalid session ID: {SessionId}", request.SessionId);
+                return BadRequest("Session ID is required.");
+            }
+
+            _logger.LogInformation("Processing question for session: {SessionId}, ThreadId: {ThreadId}",
+                request.SessionId, request.ThreadId);
+
+            // Call the question answering service
+            var result = await _questionAnswerService.AskQuestionAsync(
+                request.SessionId,
+                request.Question,
+                request.ThreadId);
+
+            // Map the result to the response DTO
+            var response = new QuestionAnswerResponse
+            {
+                Answer = result.Answer,
+                RelevantChunkIndices = result.RelevantChunkIndices,
+                ThreadId = result.ThreadId,
+                ConversationHistory = result.ConversationHistory,
+                TotalQuestionsAsked = result.ConversationHistory.Count(m => m.Role == MessageRole.User)
+            };
+
+            _logger.LogInformation("Successfully processed question for session: {SessionId}, ThreadId: {ThreadId}",
+                request.SessionId, response.ThreadId);
+
+            return Ok(response);
+        }
+        catch (SessionNotFoundException ex)
+        {
+            _logger.LogWarning(ex, "Session not found for ID: {SessionId}", request?.SessionId);
+            return NotFound("Document session not found or expired");
+        }
+        catch (SessionExpiredException ex)
+        {
+            _logger.LogWarning(ex, "Session expired for ID: {SessionId}", request?.SessionId);
+            return StatusCode(StatusCodes.Status410Gone, "Document session has expired");
+        }
+        catch (ThreadIdMismatchException ex)
+        {
+            _logger.LogWarning(ex, "Thread ID mismatch for session: {SessionId}, ThreadId: {ThreadId}",
+                request?.SessionId, request?.ThreadId);
+            return BadRequest("ThreadId does not match document session");
+        }
+        catch (RateLimitExceededException ex)
+        {
+            _logger.LogWarning(ex, "Rate limit exceeded for session: {SessionId}", request?.SessionId);
+            return StatusCode(StatusCodes.Status429TooManyRequests, "Maximum questions per session exceeded");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error while processing question for session: {SessionId}", request?.SessionId);
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                "An unexpected error occurred while processing the question. Please try again later.");
+        }
     }
 }

@@ -30,4 +30,16 @@ public class DocumentProcessingSettings
     /// Default is 400 characters.
     /// </summary>
     public int ChunkOverlap { get; set; } = 400;
+
+    /// <summary>
+    /// Gets or sets the session expiration time in minutes.
+    /// Default is 15 minutes.
+    /// </summary>
+    public int SessionExpirationMinutes { get; set; } = 15;
+
+    /// <summary>
+    /// Gets or sets the maximum number of questions allowed per session.
+    /// Default is 50 questions.
+    /// </summary>
+    public int MaxQuestionsPerSession { get; set; } = 50;
 }

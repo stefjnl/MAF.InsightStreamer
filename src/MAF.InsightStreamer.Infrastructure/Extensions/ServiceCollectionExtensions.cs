@@ -2,6 +2,7 @@ using MAF.InsightStreamer.Infrastructure.Orchestration;
 using MAF.InsightStreamer.Infrastructure.Services;
 using MAF.InsightStreamer.Infrastructure.Providers;
 using MAF.InsightStreamer.Infrastructure.Configuration;
+using MAF.InsightStreamer.Application.Configuration;
 using MAF.InsightStreamer.Application.Interfaces;
 using MAF.InsightStreamer.Application.Services;
 using Microsoft.Extensions.Configuration;
@@ -23,6 +24,10 @@ public static class ServiceCollectionExtensions
         services.Configure<DocumentProcessingSettings>(
             configuration.GetSection("DocumentProcessing"));
 
+        // Register question answer configuration
+        services.Configure<QuestionAnswerSettings>(
+            configuration.GetSection("QuestionAnswer"));
+
         // Register HttpClient for YouTubeService
         services.AddHttpClient<IYouTubeService, YouTubeService>();
 
@@ -38,6 +43,15 @@ public static class ServiceCollectionExtensions
 
         // Register memory cache for caching functionality
         services.AddMemoryCache();
+        
+        // Register thread management service
+        services.AddScoped<IThreadManagementService, ThreadManagementService>();
+        
+        // Register document session service
+        services.AddScoped<IDocumentSessionService, DocumentSessionService>();
+        
+        // Register question answer service
+        services.AddScoped<IQuestionAnswerService, QuestionAnswerService>();
         
         // Register other services (when implemented)
         // services.AddScoped<IVideoCacheService, VideoCacheService>();

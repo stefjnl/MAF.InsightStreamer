@@ -16,6 +16,8 @@ public class DocumentService : IDocumentService
 {
     private readonly IDocumentParserService _documentParserService;
     private readonly IContentOrchestratorService _contentOrchestratorService;
+    private readonly IChunkingService _chunkingService;
+    private readonly IDocumentSessionService _documentSessionService;
     private readonly ILogger<DocumentService> _logger;
     private readonly IMemoryCache _memoryCache;
 
@@ -24,16 +26,22 @@ public class DocumentService : IDocumentService
     /// </summary>
     /// <param name="documentParserService">The document parsing service.</param>
     /// <param name="contentOrchestratorService">The content orchestrator service for AI analysis.</param>
+    /// <param name="chunkingService">The chunking service for document text processing.</param>
+    /// <param name="documentSessionService">The document session service for Q&A session management.</param>
     /// <param name="logger">The logger for recording service operations.</param>
     /// <param name="memoryCache">The memory cache for storing analysis results.</param>
     public DocumentService(
         IDocumentParserService documentParserService,
         IContentOrchestratorService contentOrchestratorService,
+        IChunkingService chunkingService,
+        IDocumentSessionService documentSessionService,
         ILogger<DocumentService> logger,
         IMemoryCache memoryCache)
     {
         _documentParserService = documentParserService ?? throw new ArgumentNullException(nameof(documentParserService));
         _contentOrchestratorService = contentOrchestratorService ?? throw new ArgumentNullException(nameof(contentOrchestratorService));
+        _chunkingService = chunkingService ?? throw new ArgumentNullException(nameof(chunkingService));
+        _documentSessionService = documentSessionService ?? throw new ArgumentNullException(nameof(documentSessionService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _memoryCache = memoryCache ?? throw new ArgumentNullException(nameof(memoryCache));
     }
@@ -101,25 +109,55 @@ public class DocumentService : IDocumentService
             // Parse the JSON response from the orchestrator
             var analysisData = ParseAnalysisResult(analysisResult, _logger);
 
-            // Step 6: Build DocumentAnalysisResponse with metadata
+            // Step 6: Chunk the document text for Q&A processing
+            var documentChunks = await _chunkingService.ChunkDocumentAsync(extractedText);
+            _logger.LogInformation("Document chunked into {ChunkCount} chunks for Q&A processing", documentChunks.Count);
+
+            // Step 7: Build DocumentAnalysisResponse with metadata
             var metadata = new DocumentMetadata(fileName, documentType, fileSizeBytes, pageCount);
             var response = new DocumentAnalysisResponse
             {
                 Summary = analysisData.Summary,
                 KeyPoints = analysisData.KeyPoints,
                 Metadata = metadata,
-                ChunkCount = CalculateChunkCount(extractedText),
+                ChunkCount = documentChunks.Count,
                 ProcessingTimeMs = (long)(DateTime.UtcNow - startTime).TotalMilliseconds
             };
 
-            // Step 7: Cache result with 5-minute expiration
+            // Step 8: Create DocumentSession after successful analysis
+            try
+            {
+                var documentAnalysisResult = new DocumentAnalysisResult
+                {
+                    Summary = analysisData.Summary,
+                    KeyPoints = analysisData.KeyPoints,
+                    DocumentType = documentType,
+                    Metadata = metadata,
+                    ChunkCount = documentChunks.Count,
+                    ProcessingTimeMs = response.ProcessingTimeMs
+                };
+
+                var documentSession = await _documentSessionService.CreateSessionAsync(documentAnalysisResult, documentChunks);
+                response = response with { SessionId = documentSession.SessionId };
+                
+                _logger.LogInformation("Created document session {SessionId} for document: {FileName}",
+                    documentSession.SessionId, fileName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to create document session for document: {FileName}", fileName);
+                // Continue without session - the analysis was successful but session creation failed
+                // The response will have a default empty SessionId
+            }
+
+            // Step 9: Cache result with 5-minute expiration
             var cacheEntryOptions = new MemoryCacheEntryOptions()
                 .SetAbsoluteExpiration(TimeSpan.FromMinutes(5));
             
             _memoryCache.Set(cacheKey, response, cacheEntryOptions);
 
-            _logger.LogInformation("Successfully analyzed document: {FileName} in {ElapsedMs}ms", 
-                fileName, response.ProcessingTimeMs);
+            _logger.LogInformation("Successfully analyzed document: {FileName} in {ElapsedMs}ms with SessionId: {SessionId}",
+                fileName, response.ProcessingTimeMs, response.SessionId);
 
             return response;
         }

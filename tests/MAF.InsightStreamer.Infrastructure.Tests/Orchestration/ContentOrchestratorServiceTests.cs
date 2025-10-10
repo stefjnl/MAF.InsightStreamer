@@ -18,6 +18,7 @@ public class ContentOrchestratorServiceTests
 {
     private readonly Mock<IYouTubeService> _mockYouTubeService;
     private readonly Mock<IChunkingService> _mockChunkingService;
+    private readonly Mock<IThreadManagementService> _mockThreadManagementService;
     private readonly Mock<IOptions<ProviderSettings>> _mockSettings;
     private readonly Mock<ILogger<ContentOrchestratorService>> _mockLogger;
     private readonly ContentOrchestratorService _service;
@@ -26,6 +27,7 @@ public class ContentOrchestratorServiceTests
     {
         _mockYouTubeService = new Mock<IYouTubeService>();
         _mockChunkingService = new Mock<IChunkingService>();
+        _mockThreadManagementService = new Mock<IThreadManagementService>();
         _mockLogger = new Mock<ILogger<ContentOrchestratorService>>();
 
         // Setup configuration to use user secrets
@@ -46,7 +48,7 @@ public class ContentOrchestratorServiceTests
         _mockSettings = new Mock<IOptions<ProviderSettings>>();
         _mockSettings.Setup(s => s.Value).Returns(settings);
 
-        _service = new ContentOrchestratorService(_mockSettings.Object, _mockYouTubeService.Object, _mockChunkingService.Object, _mockLogger.Object);
+        _service = new ContentOrchestratorService(_mockSettings.Object, _mockYouTubeService.Object, _mockChunkingService.Object, _mockThreadManagementService.Object, _mockLogger.Object);
     }
 
     [Fact]

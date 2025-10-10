@@ -120,10 +120,70 @@
             
             <!-- Analysis Content -->
             <div id="resultsContent" class="text-gray-700"></div>
+            
+            <!-- Q&A Section (Hidden by default) -->
+            <div id="qaSection" class="hidden mt-6 pt-6 border-t border-gray-200">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-semibold text-gray-800">Ask Questions About This Document</h3>
+                    <button
+                        id="newConversationBtn"
+                        onclick="startNewConversation()"
+                        class="text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded-md transition"
+                    >
+                        Start New Conversation
+                    </button>
+                </div>
+                
+                <!-- Chat Container -->
+                <div id="chatContainer" class="border border-gray-300 rounded-lg mb-4" style="height: 400px;">
+                    <!-- Messages Container -->
+                    <div id="messagesContainer" class="h-5/6 p-4 overflow-y-auto bg-gray-50 rounded-t-lg">
+                        <!-- Messages will be inserted here -->
+                        <div id="welcomeMessage" class="text-center text-gray-500 py-8">
+                            Ask a question about the document to get started
+                        </div>
+                    </div>
+                    
+                    <!-- Input Container -->
+                    <div class="h-1/6 p-3 border-t border-gray-300 bg-white rounded-b-lg">
+                        <div class="flex gap-2">
+                            <input
+                                type="text"
+                                id="questionInput"
+                                placeholder="Type your question here..."
+                                class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                onkeypress="handleQuestionKeyPress(event)"
+                            />
+                            <button
+                                id="sendButton"
+                                onclick="sendQuestion()"
+                                class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition font-medium"
+                            >
+                                Send
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Typing Indicator (Hidden by default) -->
+                <div id="typingIndicator" class="hidden flex items-center text-gray-500 mb-2">
+                    <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                    <span>AI is thinking...</span>
+                </div>
+                
+                <!-- Error Message for Q&A (Hidden by default) -->
+                <div id="qaError" class="hidden bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+                    <p class="text-red-800 text-sm" id="qaErrorMessage"></p>
+                </div>
+            </div>
         </div>
     </div>
     
     <script>
+        // Global variables for conversational Q&A
+        let currentThreadId = null;  // null for first question
+        let sessionId = null;        // from analysis response
+        
         // Tab switching functionality
         function switchTab(tab) {
             const youtubeTab = document.getElementById('youtubeTab');
@@ -270,6 +330,9 @@
         function displayDocumentResults(result) {
             document.getElementById('resultsTitle').textContent = 'Document Analysis Results';
             
+            // Store sessionId for Q&A functionality
+            sessionId = result.sessionId;
+            
             // Display document metadata
             const metadata = result.metadata;
             document.getElementById('metaFileName').textContent = metadata.fileName;
@@ -318,6 +381,18 @@
                 </div>
             `;
             
+            // Add "Ask Questions About This Document" button
+            contentHtml += `
+                <div class="mt-6 pt-4 border-t border-gray-200">
+                    <button
+                        onclick="showChatInterface()"
+                        class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition font-medium"
+                    >
+                        Ask Questions About This Document
+                    </button>
+                </div>
+            `;
+            
             document.getElementById('resultsContent').innerHTML = contentHtml;
             document.getElementById('results').classList.remove('hidden');
         }
@@ -335,6 +410,153 @@
         function showError(message) {
             document.getElementById('errorMessage').textContent = message;
             document.getElementById('error').classList.remove('hidden');
+        }
+        
+        // Show the chat interface for Q&A
+        function showChatInterface() {
+            document.getElementById('qaSection').classList.remove('hidden');
+            // Scroll to the Q&A section
+            document.getElementById('qaSection').scrollIntoView({ behavior: 'smooth' });
+            // Focus on the input field
+            document.getElementById('questionInput').focus();
+        }
+        
+        // Start a new conversation (clear threadId)
+        function startNewConversation() {
+            currentThreadId = null;
+            // Clear the chat history
+            document.getElementById('messagesContainer').innerHTML = `
+                <div id="welcomeMessage" class="text-center text-gray-500 py-8">
+                    Ask a question about the document to get started
+                </div>
+            `;
+            // Hide any error messages
+            document.getElementById('qaError').classList.add('hidden');
+            // Focus on the input field
+            document.getElementById('questionInput').focus();
+        }
+        
+        // Handle Enter key in the question input
+        function handleQuestionKeyPress(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendQuestion();
+            }
+        }
+        
+        // Send a question to the API
+        async function sendQuestion() {
+            const questionInput = document.getElementById('questionInput');
+            const question = questionInput.value.trim();
+            
+            if (!question) {
+                return;
+            }
+            
+            // Clear the input field
+            questionInput.value = '';
+            
+            // Hide welcome message if it's the first question
+            const welcomeMessage = document.getElementById('welcomeMessage');
+            if (welcomeMessage) {
+                welcomeMessage.remove();
+            }
+            
+            // Show typing indicator
+            document.getElementById('typingIndicator').classList.remove('hidden');
+            
+            // Hide any previous error messages
+            document.getElementById('qaError').classList.add('hidden');
+            
+            try {
+                const response = await fetch('/api/document/ask', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        sessionId: sessionId,
+                        question: question,
+                        threadId: currentThreadId
+                    })
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(errorText || 'Failed to get answer');
+                }
+                
+                const result = await response.json();
+                
+                // Store threadId for subsequent questions
+                currentThreadId = result.threadId;
+                
+                // Render conversation history
+                renderConversation(result.conversationHistory);
+                
+            } catch (error) {
+                document.getElementById('qaErrorMessage').textContent = error.message;
+                document.getElementById('qaError').classList.remove('hidden');
+            } finally {
+                // Hide typing indicator
+                document.getElementById('typingIndicator').classList.add('hidden');
+                // Focus back to input field
+                questionInput.focus();
+            }
+        }
+        
+        // Render the conversation history
+        function renderConversation(conversationHistory) {
+            const messagesContainer = document.getElementById('messagesContainer');
+            messagesContainer.innerHTML = '';
+            
+            conversationHistory.forEach(message => {
+                const messageElement = createMessageElement(message);
+                messagesContainer.appendChild(messageElement);
+            });
+            
+            // Auto-scroll to the latest message
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+        
+        // Create a message element for the chat
+        function createMessageElement(message) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `mb-4 ${message.role === 0 ? 'text-right' : 'text-left'}`; // 0 = User, 1 = Assistant
+            
+            const messageContent = document.createElement('div');
+            messageContent.className = `inline-block max-w-3/4 px-4 py-2 rounded-lg ${
+                message.role === 0
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-200 text-gray-800'
+            }`;
+            
+            // Use marked.js to render markdown content for assistant messages
+            const renderedContent = message.role === 1 ? marked.parse(message.content) : message.content;
+            messageContent.innerHTML = renderedContent;
+            
+            messageDiv.appendChild(messageContent);
+            
+            // Add chunk references if available
+            if (message.chunkReferences && message.chunkReferences.length > 0) {
+                const chunkRefsDiv = document.createElement('div');
+                chunkRefsDiv.className = 'mt-2 text-xs';
+                
+                if (message.role === 0) {
+                    chunkRefsDiv.className += ' text-right mr-2';
+                } else {
+                    chunkRefsDiv.className += ' text-left ml-2';
+                }
+                
+                const chunkBadge = document.createElement('span');
+                chunkBadge.className = 'inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs';
+                chunkBadge.textContent = `Based on sections: ${message.chunkReferences.join(', ')}`;
+                
+                chunkRefsDiv.appendChild(chunkBadge);
+                messageDiv.appendChild(chunkRefsDiv);
+            }
+            
+            return messageDiv;
         }
     </script>
 </body>

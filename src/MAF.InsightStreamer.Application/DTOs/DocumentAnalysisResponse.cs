@@ -31,4 +31,9 @@ public record DocumentAnalysisResponse
     /// Gets or sets the total processing time in milliseconds.
     /// </summary>
     public long ProcessingTimeMs { get; init; }
+
+    /// <summary>
+    /// Gets or sets the unique identifier for the document session created for Q&A.
+    /// </summary>
+    public Guid SessionId { get; init; }
 }
