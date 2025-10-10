@@ -178,7 +178,18 @@ Channel: {metadata.Author}
 Transcript (first {chunksToProcess.Count} segments):
 {combinedText}
 
-Provide the summary as bullet points starting with '•' or '-'.";
+IMPORTANT: Format your response using markdown for better readability:
+- Use **bold** for emphasis on key terms
+- Use `code formatting` for technical terms or concepts
+- Use bullet points with the format: - **Key Point**: Description with **emphasis**
+- You can include sub-bullets with indentation (  - Sub-point: Details)
+
+Example format:
+- **Main Topic**: Description of the key concept with **important details**
+- **Another Finding**: Explanation including `technical term` and **emphasis**
+- **Conclusion**: Final takeaway with **key insight**
+
+Provide the summary using this markdown formatting.";
 
             // Use orchestrator's RunAsync (it will use the LLM internally)
             var summary = await _orchestrator.RunAsync(prompt);

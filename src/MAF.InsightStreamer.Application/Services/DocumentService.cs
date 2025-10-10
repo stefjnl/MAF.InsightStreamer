@@ -95,6 +95,9 @@ public class DocumentService : IDocumentService
             var orchestratorInput = BuildOrchestratorInput(fileName, extractedText, analysisRequest);
             var analysisResult = await _contentOrchestratorService.RunAsync(orchestratorInput);
 
+            // Log the raw response for debugging
+            _logger.LogInformation("Raw orchestrator response: {Response}", analysisResult);
+
             // Parse the JSON response from the orchestrator
             var analysisData = ParseAnalysisResult(analysisResult, _logger);
 
@@ -175,7 +178,22 @@ public class DocumentService : IDocumentService
                $"Filename: {fileName}\n" +
                $"User Request: {analysisRequest}\n\n" +
                $"Document Content:\n{documentText}\n\n" +
-               $"Provide a response in JSON format with 'summary' and 'keyPoints' fields.";
+               $"Provide a response in JSON format with 'summary' and 'keyPoints' fields.\n" +
+               $"IMPORTANT: Format the text content within the JSON fields using markdown for better readability:\n" +
+               $"- Use headers (##, ###) for sections\n" +
+               $"- Use **bold** for emphasis\n" +
+               $"- Use bullet points (-) or numbered lists (1., 2.) for lists\n" +
+               $"- Use `code formatting` for technical terms\n" +
+               $"- Use blockquotes (> ) for quotes\n\n" +
+               $"Example format:\n" +
+               $"{{\n" +
+               $"  \"summary\": \"## Document Summary\\n\\nThis document discusses **key concepts** including:\\n\\n- **Important topic**: Description\\n- **Another topic**: Details\\n\\nThe main conclusion is...\",\n" +
+               $"  \"keyPoints\": [\n" +
+               $"    \"- **Key Finding 1**: Detailed description with **emphasis**\",\n" +
+               $"    \"- **Key Finding 2**: Another important point\",\n" +
+               $"    \"- **Key Finding 3**: Final observation with `technical term`\"\n" +
+               $"  ]\n" +
+               $"}}";
     }
 
     /// <summary>
@@ -188,17 +206,20 @@ public class DocumentService : IDocumentService
     {
         try
         {
+            // Clean up malformed JSON that starts with ""json or similar prefixes
+            var cleanedResult = CleanJsonResponse(analysisResult);
+            
             var options = new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true
             };
             
-            var jsonResponse = JsonSerializer.Deserialize<OrchestratorAnalysisResult>(analysisResult, options);
+            var jsonResponse = JsonSerializer.Deserialize<OrchestratorAnalysisResult>(cleanedResult, options);
             
             if (jsonResponse == null)
             {
                 logger.LogWarning("Failed to deserialize orchestrator response, using fallback parsing");
-                return FallbackParsing(analysisResult);
+                return FallbackParsing(cleanedResult);
             }
 
             return (jsonResponse.Summary, jsonResponse.KeyPoints);
@@ -215,6 +236,53 @@ public class DocumentService : IDocumentService
     /// </summary>
     /// <param name="analysisResult">The raw analysis result string.</param>
     /// <returns>A tuple containing the summary and key points.</returns>
+    /// <summary>
+    /// Cleans up malformed JSON responses that might contain prefixes like ""json or other artifacts.
+    /// </summary>
+    /// <param name="response">The raw response string.</param>
+    /// <returns>The cleaned JSON string.</returns>
+    private static string CleanJsonResponse(string response)
+    {
+        if (string.IsNullOrWhiteSpace(response))
+            return response;
+
+        // Remove common malformed prefixes
+        var cleaned = response.Trim();
+        
+        // Remove "json prefix if present (quote json)
+        if (cleaned.StartsWith("\"json", StringComparison.OrdinalIgnoreCase))
+        {
+            cleaned = cleaned.Substring(5).Trim(); // "json is 5 characters
+        }
+        
+        // Remove json prefix if present
+        if (cleaned.StartsWith("json", StringComparison.OrdinalIgnoreCase))
+        {
+            cleaned = cleaned.Substring("json".Length).Trim();
+        }
+        
+        // Remove any remaining quotes at the start/end if they're not part of valid JSON
+        if (cleaned.StartsWith("\"") && cleaned.EndsWith("\"") && cleaned.Length > 1)
+        {
+            // Check if this is a valid JSON string by trying to parse it
+            try
+            {
+                var unquoted = cleaned.Substring(1, cleaned.Length - 2);
+                // If the unquoted content looks like JSON, return it unquoted
+                if (unquoted.TrimStart().StartsWith("{") || unquoted.TrimStart().StartsWith("["))
+                {
+                    return unquoted;
+                }
+            }
+            catch
+            {
+                // If parsing fails, keep original
+            }
+        }
+        
+        return cleaned;
+    }
+
     private static (string Summary, List<string> KeyPoints) FallbackParsing(string analysisResult)
     {
         try
