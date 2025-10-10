@@ -1,7 +1,10 @@
 using MAF.InsightStreamer.Infrastructure.Orchestration;
 using MAF.InsightStreamer.Infrastructure.Services;
 using MAF.InsightStreamer.Infrastructure.Providers;
+using MAF.InsightStreamer.Infrastructure.Configuration;
+using MAF.InsightStreamer.Application.Configuration;
 using MAF.InsightStreamer.Application.Interfaces;
+using MAF.InsightStreamer.Application.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -16,18 +19,41 @@ public static class ServiceCollectionExtensions
         // Register configuration
         services.Configure<ProviderSettings>(
             configuration.GetSection(ProviderSettings.SectionName));
+        
+        // Register document processing configuration
+        services.Configure<DocumentProcessingSettings>(
+            configuration.GetSection("DocumentProcessing"));
+
+        // Register question answer configuration
+        services.Configure<QuestionAnswerSettings>(
+            configuration.GetSection("QuestionAnswer"));
 
         // Register HttpClient for YouTubeService
         services.AddHttpClient<IYouTubeService, YouTubeService>();
 
         // Register services with proper lifetimes
         services.AddScoped<IChunkingService, ChunkingService>();
+        
+        // Document processing services
+        services.AddScoped<IDocumentParserService, DocumentParserService>();
+        services.AddScoped<IDocumentService, DocumentService>();
 
         // Register orchestrator as scoped - depends on scoped services
         services.AddScoped<IContentOrchestratorService, ContentOrchestratorService>();
 
+        // Register memory cache for caching functionality
+        services.AddMemoryCache();
+        
+        // Register thread management service
+        services.AddScoped<IThreadManagementService, ThreadManagementService>();
+        
+        // Register document session service
+        services.AddScoped<IDocumentSessionService, DocumentSessionService>();
+        
+        // Register question answer service
+        services.AddScoped<IQuestionAnswerService, QuestionAnswerService>();
+        
         // Register other services (when implemented)
-        // services.AddMemoryCache();
         // services.AddScoped<IVideoCacheService, VideoCacheService>();
 
         return services;

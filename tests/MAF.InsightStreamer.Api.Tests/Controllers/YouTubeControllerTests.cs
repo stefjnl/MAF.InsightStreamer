@@ -48,7 +48,7 @@ public class YouTubeControllerTests : IClassFixture<WebApplicationFactory<Progra
         // Arrange
         const string videoUrl = "https://www.youtube.com/watch?v=test123";
         const string expectedResponse = "Video summary content";
-        _mockOrchestrator.Setup(o => o.RunAsync($"Summarize this video: {videoUrl}"))
+        _mockOrchestrator.Setup(o => o.RunAsync($"Summarize this video: {videoUrl}", It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedResponse);
 
         var client = _factory.CreateClient();
@@ -69,7 +69,7 @@ public class YouTubeControllerTests : IClassFixture<WebApplicationFactory<Progra
         // Arrange
         const string videoUrl = "https://www.youtube.com/watch?v=test123";
         const string errorMessage = "Orchestrator failed";
-        _mockOrchestrator.Setup(o => o.RunAsync($"Summarize this video: {videoUrl}"))
+        _mockOrchestrator.Setup(o => o.RunAsync($"Summarize this video: {videoUrl}", It.IsAny<CancellationToken>()))
             .ThrowsAsync(new Exception(errorMessage));
 
         var client = _factory.CreateClient();
@@ -90,7 +90,7 @@ public class YouTubeControllerTests : IClassFixture<WebApplicationFactory<Progra
         // Arrange
         const string videoUrl = "https://www.youtube.com/watch?v=test123";
         const string expectedResponse = "Video extraction content";
-        _mockOrchestrator.Setup(o => o.RunAsync($"Extract the video: {videoUrl}"))
+        _mockOrchestrator.Setup(o => o.RunAsync($"Extract the video: {videoUrl}", It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedResponse);
 
         var client = _factory.CreateClient();

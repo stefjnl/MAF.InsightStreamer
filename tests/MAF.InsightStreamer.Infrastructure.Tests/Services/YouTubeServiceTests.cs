@@ -66,7 +66,7 @@ public class YouTubeServiceTests
     }
 
     [Fact]
-    public async Task GetTranscriptAsync_ValidUrl_ReturnsTranscriptChunks()
+    public async Task GetTranscriptAsync_ValidUrl_ReturnsTranscriptResult()
     {
         // Arrange
         // Act & Assert - Test null/empty validation
@@ -89,8 +89,10 @@ public class YouTubeServiceTests
 
         // Assert
         Assert.NotNull(result);
-        // Should return empty list since we're not mocking the API
-        Assert.Empty(result);
+        // Should return unsuccessful result since we're not mocking the API
+        Assert.False(result.Success);
+        Assert.NotNull(result.ErrorMessage);
+        Assert.Empty(result.Chunks);
     }
 
     [Fact]
@@ -104,8 +106,10 @@ public class YouTubeServiceTests
 
         // Assert
         Assert.NotNull(result);
-        // Should return empty list since we're not mocking the API
-        Assert.Empty(result);
+        // Should return unsuccessful result since we're not mocking the API
+        Assert.False(result.Success);
+        Assert.NotNull(result.ErrorMessage);
+        Assert.Empty(result.Chunks);
     }
 
     [Fact]
@@ -222,7 +226,7 @@ public class YouTubeServiceTests
     }
 
     [Fact]
-    public async Task GetTranscriptAsync_InvalidVideoUrl_ReturnsEmptyList()
+    public async Task GetTranscriptAsync_InvalidVideoUrl_ReturnsUnsuccessfulResult()
     {
         // Arrange
         const string invalidUrl = "https://www.youtube.com/watch?v=nonexistent";
@@ -231,7 +235,10 @@ public class YouTubeServiceTests
         var result = await _service.GetTranscriptAsync(invalidUrl);
 
         // Assert
-        Assert.Empty(result);
+        Assert.NotNull(result);
+        Assert.False(result.Success);
+        Assert.NotNull(result.ErrorMessage);
+        Assert.Empty(result.Chunks);
     }
 
     [Fact]
@@ -248,7 +255,7 @@ public class YouTubeServiceTests
     }
 
     [Fact]
-    public async Task GetTranscriptAsync_ValidVideoIdWithoutCaptions_ReturnsEmptyList()
+    public async Task GetTranscriptAsync_ValidVideoIdWithoutCaptions_ReturnsUnsuccessfulResult()
     {
         // Arrange
         const string videoUrl = "https://www.youtube.com/watch?v=test123";
@@ -257,11 +264,14 @@ public class YouTubeServiceTests
         var result = await _service.GetTranscriptAsync(videoUrl);
 
         // Assert
-        Assert.Empty(result);
+        Assert.NotNull(result);
+        Assert.False(result.Success);
+        Assert.NotNull(result.ErrorMessage);
+        Assert.Empty(result.Chunks);
     }
 
     [Fact]
-    public async Task GetTranscriptAsync_ValidVideoWithCaptions_ReturnsTranscriptChunks()
+    public async Task GetTranscriptAsync_ValidVideoWithCaptions_ReturnsTranscriptResult()
     {
         // Arrange
         const string videoUrl = "https://www.youtube.com/watch?v=test123";
@@ -271,11 +281,13 @@ public class YouTubeServiceTests
         var result = await _service.GetTranscriptAsync(videoUrl, languageCode);
 
         // Assert
-        // Note: This test will return empty list since we're not mocking the YouTube API
+        // Note: This test will return unsuccessful result since we're not mocking the YouTube API
         // The actual YouTube API calls will fail without a real API key, but the service
-        // should handle exceptions gracefully and return an empty list
+        // should handle exceptions gracefully and return an unsuccessful result
         Assert.NotNull(result);
-        Assert.Empty(result); // Expected behavior when API calls fail
+        Assert.False(result.Success);
+        Assert.NotNull(result.ErrorMessage);
+        Assert.Empty(result.Chunks); // Expected behavior when API calls fail
     }
 
 }

@@ -73,7 +73,7 @@ public class YouTubeController : ControllerBase
     {
         try
         {
-            var result = await _orchestrator.RunAsync($"Extract the video: {videoUrl}");
+            var result = await _orchestrator.RunAsync($"Extract the video: {videoUrl}", HttpContext.RequestAborted);
             return Ok(new { response = result });
         }
         catch (Exception ex)
@@ -90,7 +90,7 @@ public class YouTubeController : ControllerBase
     {
         try
         {
-            var result = await _orchestrator.RunAsync($"Summarize this video: {videoUrl}");
+            var result = await _orchestrator.RunAsync($"Summarize this video: {videoUrl}", HttpContext.RequestAborted);
             return Ok(new { response = result });
         }
         catch (Exception ex)

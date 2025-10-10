@@ -16,6 +16,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using YoutubeExplode;
 using YoutubeExplode.Exceptions;
@@ -75,7 +76,7 @@ public class YouTubeService : IYouTubeService
     /// <exception cref="ArgumentException">Thrown when the video URL is null, empty, or invalid.</exception>
     /// <exception cref="VideoNotFoundException">Thrown when the video cannot be found or is not accessible.</exception>
     /// <exception cref="VideoUnavailableException">Thrown when the video is private, restricted, or unavailable.</exception>
-    public async Task<VideoMetadata> GetVideoMetadataAsync(string videoUrl)
+    public async Task<VideoMetadata> GetVideoMetadataAsync(string videoUrl, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(videoUrl))
         {
@@ -87,7 +88,7 @@ public class YouTubeService : IYouTubeService
         {
             _logger.LogInformation("Extracting metadata for video URL: {VideoUrl}", videoUrl);
 
-            var video = await _youtubeClient.Videos.GetAsync(videoUrl);
+            var video = await _youtubeClient.Videos.GetAsync(videoUrl, cancellationToken);
 
             var metadata = new VideoMetadata
             {
@@ -133,7 +134,7 @@ public class YouTubeService : IYouTubeService
     /// <exception cref="VideoNotFoundException">Thrown when the video cannot be found or is not accessible.</exception>
     /// <exception cref="VideoUnavailableException">Thrown when the video is private, restricted, or unavailable.</exception>
     /// <exception cref="TranscriptUnavailableException">Thrown when no transcript is available for the specified language.</exception>
-    public async Task<List<TranscriptChunk>> GetTranscriptAsync(string videoUrl, string languageCode = "en")
+    public async Task<TranscriptResult> GetTranscriptAsync(string videoUrl, string languageCode = "en", CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(videoUrl))
         {
@@ -156,21 +157,23 @@ public class YouTubeService : IYouTubeService
             var videoId = ExtractVideoIdFromUrl(videoUrl);
             if (string.IsNullOrWhiteSpace(videoId))
             {
-                _logger.LogError("Invalid YouTube URL format: {VideoUrl}", videoUrl);
-                return new List<TranscriptChunk>();
+                var errorMessage = $"Invalid YouTube URL format: {videoUrl}";
+                _logger.LogError(errorMessage);
+                return new TranscriptResult { Success = false, ErrorMessage = errorMessage };
             }
 
             // Use the Python microservice for transcript extraction
-            var transcriptChunks = await GetTranscriptViaPythonService(videoId, languageCode);
+            var transcriptResult = await GetTranscriptViaPythonService(videoId, languageCode, cancellationToken);
 
             _logger.LogInformation("Successfully extracted {ChunkCount} transcript chunks for video: {VideoUrl}",
-                transcriptChunks.Count, videoUrl);
-            return transcriptChunks;
+                transcriptResult.Chunks.Count, videoUrl);
+            return transcriptResult;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unexpected error extracting transcript for video: {VideoUrl}", videoUrl);
-            return new List<TranscriptChunk>();
+            var errorMessage = $"Unexpected error extracting transcript for video: {videoUrl}. Error: {ex.Message}";
+            _logger.LogError(ex, errorMessage);
+            return new TranscriptResult { Success = false, ErrorMessage = errorMessage };
         }
     }
 
@@ -212,27 +215,28 @@ public class YouTubeService : IYouTubeService
     /// <param name="videoId">The YouTube video ID.</param>
     /// <param name="languageCode">The language code for the transcript.</param>
     /// <returns>A list of TranscriptChunk objects containing the transcript segments with timing information.</returns>
-    private async Task<List<TranscriptChunk>> GetTranscriptViaPythonService(string videoId, string languageCode)
+    private async Task<TranscriptResult> GetTranscriptViaPythonService(string videoId, string languageCode, CancellationToken cancellationToken = default)
     {
         try
         {
             var requestUrl = $"{_transcriptServiceUrl}/transcript/{videoId}?languages={languageCode}";
             _logger.LogInformation("Requesting transcript from Python service: {RequestUrl}", requestUrl);
 
-            var response = await _httpClient.GetAsync(requestUrl);
+            var response = await _httpClient.GetAsync(requestUrl, cancellationToken);
             
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogWarning("Python transcript service returned non-success status: {StatusCode} for video: {VideoId}",
-                    response.StatusCode, videoId);
-                return new List<TranscriptChunk>();
+                var errorMessage = $"Python transcript service returned non-success status: {response.StatusCode} for video: {videoId}";
+                _logger.LogWarning(errorMessage);
+                return new TranscriptResult { Success = false, ErrorMessage = errorMessage };
             }
 
-            var content = await response.Content.ReadAsStringAsync();
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
             if (string.IsNullOrWhiteSpace(content))
             {
-                _logger.LogWarning("Empty response from Python transcript service for video: {VideoId}", videoId);
-                return new List<TranscriptChunk>();
+                var errorMessage = $"Empty response from Python transcript service for video: {videoId}";
+                _logger.LogWarning(errorMessage);
+                return new TranscriptResult { Success = false, ErrorMessage = errorMessage };
             }
 
             var jsonOptions = new JsonSerializerOptions
@@ -245,8 +249,9 @@ public class YouTubeService : IYouTubeService
             
             if (pythonResponse?.Transcript == null || pythonResponse.Transcript.Count == 0)
             {
-                _logger.LogWarning("No transcript segments returned from Python service for video: {VideoId}", videoId);
-                return new List<TranscriptChunk>();
+                var errorMessage = $"No transcript segments returned from Python service for video: {videoId}";
+                _logger.LogWarning(errorMessage);
+                return new TranscriptResult { Success = false, ErrorMessage = errorMessage };
             }
 
             // Convert Python transcript format to TranscriptChunk format
@@ -267,27 +272,31 @@ public class YouTubeService : IYouTubeService
 
             _logger.LogInformation("Successfully converted {SegmentCount} transcript segments from Python service for video: {VideoId}",
                 transcriptChunks.Count, videoId);
-            return transcriptChunks;
+            return new TranscriptResult { Success = true, Chunks = transcriptChunks };
         }
         catch (HttpRequestException ex)
         {
-            _logger.LogError(ex, "HTTP error calling Python transcript service for video: {VideoId}", videoId);
-            return new List<TranscriptChunk>();
+            var errorMessage = $"HTTP error calling Python transcript service for video: {videoId}. Error: {ex.Message}";
+            _logger.LogError(ex, errorMessage);
+            return new TranscriptResult { Success = false, ErrorMessage = errorMessage };
         }
         catch (JsonException ex)
         {
-            _logger.LogError(ex, "JSON deserialization error from Python transcript service for video: {VideoId}", videoId);
-            return new List<TranscriptChunk>();
+            var errorMessage = $"JSON deserialization error from Python transcript service for video: {videoId}. Error: {ex.Message}";
+            _logger.LogError(ex, errorMessage);
+            return new TranscriptResult { Success = false, ErrorMessage = errorMessage };
         }
         catch (TaskCanceledException ex)
         {
-            _logger.LogError(ex, "Timeout calling Python transcript service for video: {VideoId}", videoId);
-            return new List<TranscriptChunk>();
+            var errorMessage = $"Timeout calling Python transcript service for video: {videoId}. Error: {ex.Message}";
+            _logger.LogError(ex, errorMessage);
+            return new TranscriptResult { Success = false, ErrorMessage = errorMessage };
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unexpected error calling Python transcript service for video: {VideoId}", videoId);
-            return new List<TranscriptChunk>();
+            var errorMessage = $"Unexpected error calling Python transcript service for video: {videoId}. Error: {ex.Message}";
+            _logger.LogError(ex, errorMessage);
+            return new TranscriptResult { Success = false, ErrorMessage = errorMessage };
         }
     }
 
