@@ -2,7 +2,7 @@ using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using MAF.InsightStreamer.Infrastructure.Configuration;
+using MAF.InsightStreamer.Application.Configuration;
 using OpenAI;
 using OpenAI.Chat;
 using System.ClientModel;

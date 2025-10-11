@@ -21,6 +21,7 @@ namespace MAF.InsightStreamer.Api.Tests.Controllers
         private readonly Mock<IContentOrchestratorService> _orchestratorServiceMock;
         private readonly Mock<IConfiguration> _configurationMock;
         private readonly Mock<IThreadMigrationService> _threadMigrationServiceMock;
+        private readonly Mock<ILogger<ModelController>> _loggerMock;
         private readonly ModelController _modelController;
 
         public ModelControllerTests()
@@ -29,12 +30,14 @@ namespace MAF.InsightStreamer.Api.Tests.Controllers
             _orchestratorServiceMock = new Mock<IContentOrchestratorService>();
             _configurationMock = new Mock<IConfiguration>();
             _threadMigrationServiceMock = new Mock<IThreadMigrationService>();
+            _loggerMock = new Mock<ILogger<ModelController>>();
 
             _modelController = new ModelController(
                 _discoveryServiceMock.Object,
                 _orchestratorServiceMock.Object,
                 _configurationMock.Object,
-                _threadMigrationServiceMock.Object);
+                _threadMigrationServiceMock.Object,
+                _loggerMock.Object);
         }
 
         [Fact]

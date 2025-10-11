@@ -1,4 +1,5 @@
-namespace MAF.InsightStreamer.Infrastructure.Configuration;
+// Application/Configuration/ModelDiscoverySettings.cs
+namespace MAF.InsightStreamer.Application.Configuration;
 
 public class ModelDiscoverySettings
 {

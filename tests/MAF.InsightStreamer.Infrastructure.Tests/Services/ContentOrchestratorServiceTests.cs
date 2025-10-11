@@ -6,7 +6,7 @@ using Moq;
 using MAF.InsightStreamer.Application.Interfaces;
 using MAF.InsightStreamer.Domain.Enums;
 using MAF.InsightStreamer.Domain.Models;
-using MAF.InsightStreamer.Infrastructure.Configuration;
+using MAF.InsightStreamer.Application.Configuration;
 using MAF.InsightStreamer.Infrastructure.Providers;
 using MAF.InsightStreamer.Infrastructure.Orchestration;
 using System;

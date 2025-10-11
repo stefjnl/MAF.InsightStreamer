@@ -6,7 +6,7 @@ using Microsoft.Extensions.Options;
 using MAF.InsightStreamer.Application.DTOs;
 using MAF.InsightStreamer.Application.Interfaces;
 using MAF.InsightStreamer.Domain.Enums;
-using MAF.InsightStreamer.Infrastructure.Configuration;
+using MAF.InsightStreamer.Application.Configuration;
 
 namespace MAF.InsightStreamer.Infrastructure.Services;
 

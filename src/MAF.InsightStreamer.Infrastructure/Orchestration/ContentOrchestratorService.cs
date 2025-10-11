@@ -11,7 +11,7 @@ using System.Threading;
 using MAF.InsightStreamer.Application.Interfaces;
 using MAF.InsightStreamer.Domain.Enums;
 using MAF.InsightStreamer.Domain.Models;
-using MAF.InsightStreamer.Infrastructure.Configuration;
+using MAF.InsightStreamer.Application.Configuration;
 using MAF.InsightStreamer.Infrastructure.Providers;
 
 namespace MAF.InsightStreamer.Infrastructure.Orchestration;
@@ -138,6 +138,10 @@ public class ContentOrchestratorService : IContentOrchestratorService
         [Description("The YouTube video URL to extract")] string videoUrl,
         CancellationToken cancellationToken = default)
     {
+        _logger.LogDebug(
+            "ExtractYouTubeVideo called with {Provider}:{Model} for URL {VideoUrl}",
+            _currentConfig.Provider, _currentConfig.Model, videoUrl);
+
         if (string.IsNullOrWhiteSpace(videoUrl))
         {
             throw new ArgumentException("Video URL cannot be null or empty", nameof(videoUrl));
@@ -163,6 +167,10 @@ public class ContentOrchestratorService : IContentOrchestratorService
         [Description("Overlap between chunks in characters (default: 400 ≈ 100 tokens)")] int overlapSize = 400,
         CancellationToken cancellationToken = default)
     {
+        _logger.LogDebug(
+            "ChunkTranscriptForAnalysis called with {Provider}:{Model} for URL {VideoUrl}",
+            _currentConfig.Provider, _currentConfig.Model, videoUrl);
+
         try
         {
             var (metadata, transcript) = await GetVideoDataAsync(videoUrl, cancellationToken);
@@ -187,6 +195,10 @@ public class ContentOrchestratorService : IContentOrchestratorService
         [Description("Maximum number of chunks to process (default: 10)")] int maxChunks = 10,
         CancellationToken cancellationToken = default)
     {
+        _logger.LogDebug(
+            "SummarizeVideo called with {Provider}:{Model} for URL {VideoUrl}",
+            _currentConfig.Provider, _currentConfig.Model, videoUrl);
+
         try
         {
             var (metadata, transcript) = await GetVideoDataAsync(videoUrl, cancellationToken);
@@ -220,11 +232,17 @@ Provide the summary using this markdown formatting.";
             // Use orchestrator's RunAsync (it will use the LLM internally)
             var summary = await _orchestrator.RunAsync(prompt);
 
+            _logger.LogInformation(
+                "Successfully generated summary for video '{VideoTitle}' using {Provider}:{Model}",
+                metadata.Title, _currentConfig.Provider, _currentConfig.Model);
+
             return $"Summary of '{metadata.Title}' ({metadata.Duration}):\n\n{summary}\n\n" +
                    $"Note: Summary based on first {chunksToProcess.Count} of {chunks.Count} total chunks.";
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Error generating summary for video {VideoUrl} with {Provider}:{Model}",
+                videoUrl, _currentConfig.Provider, _currentConfig.Model);
             return $"Error generating summary for video: {ex.Message}";
         }
     }
@@ -236,6 +254,10 @@ Provide the summary using this markdown formatting.";
         [Description("The conversation history for maintaining context")] string conversationHistory,
         CancellationToken cancellationToken = default)
     {
+        _logger.LogDebug(
+            "AnswerQuestionAboutDocument called with {Provider}:{Model} for question: {Question}",
+            _currentConfig.Provider, _currentConfig.Model, question.Length > 100 ? question.Substring(0, 100) + "..." : question);
+
         try
         {
             var prompt = $@"You are a helpful assistant that answers questions about documents based on the provided context.
@@ -274,7 +296,8 @@ Example valid response:
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error answering question about document");
+            _logger.LogError(ex, "Error answering question about document with {Provider}:{Model}",
+                _currentConfig.Provider, _currentConfig.Model);
             return $"{{\"answer\": \"Error answering question: {ex.Message}\", \"relevantChunks\": []}}";
         }
     }
@@ -294,6 +317,10 @@ Example valid response:
         List<ConversationMessage> conversationHistory,
         CancellationToken cancellationToken = default)
     {
+        _logger.LogDebug(
+            "Processing AskQuestionAsync request with {Provider}:{Model} for thread {ThreadId}",
+            _currentConfig.Provider, _currentConfig.Model, threadId);
+
         if (string.IsNullOrWhiteSpace(question))
         {
             throw new ArgumentException("Question cannot be null or empty", nameof(question));
@@ -373,8 +400,8 @@ Example valid response:
                         .ToList();
                 }
 
-                _logger.LogInformation("Successfully answered question for thread {ThreadId} using {ChunkCount} chunks",
-                    threadId, relevantChunks.Count);
+                _logger.LogInformation("Successfully answered question for thread {ThreadId} using {ChunkCount} chunks with {Provider}:{Model}",
+                    threadId, relevantChunks.Count, _currentConfig.Provider, _currentConfig.Model);
 
                 return response;
             }
@@ -391,7 +418,8 @@ Example valid response:
                     {
                         var jsonDoc = JsonDocument.Parse(cleanedResponse);
                         var answer = jsonDoc.RootElement.GetProperty("answer").GetString() ?? cleanedResponse;
-                        _logger.LogInformation("Successfully parsed cleaned JSON response for thread {ThreadId}", threadId);
+                        _logger.LogInformation("Successfully parsed cleaned JSON response for thread {ThreadId} with {Provider}:{Model}",
+                            threadId, _currentConfig.Provider, _currentConfig.Model);
                         return cleanedResponse;
                     }
                     catch (JsonException cleanEx)
@@ -407,13 +435,18 @@ Example valid response:
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error in AskQuestionAsync for thread {ThreadId}", threadId);
+            _logger.LogError(ex, "Error in AskQuestionAsync for thread {ThreadId} with {Provider}:{Model}",
+                threadId, _currentConfig.Provider, _currentConfig.Model);
             return $"{{\"answer\": \"Error processing question: {ex.Message}\", \"relevantChunks\": []}}";
         }
     }
 
     public async Task<string> RunAsync(string input, CancellationToken cancellationToken = default)
     {
+        _logger.LogDebug(
+            "Processing request with {Provider}:{Model}",
+            _currentConfig.Provider, _currentConfig.Model);
+
         AIAgent agent;
         lock (_agentLock)
         {
@@ -428,6 +461,11 @@ Example valid response:
     {
         lock (_agentLock)
         {
+            // Log the switch operation details
+            _logger.LogInformation(
+                "Switching provider from {OldProvider}:{OldModel} to {NewProvider}:{NewModel}",
+                _currentConfig.Provider, _currentConfig.Model, provider, model);
+
             var newConfig = new ProviderConfiguration
             {
                 Provider = provider,
@@ -437,8 +475,8 @@ Example valid response:
             };
 
             _logger.LogInformation(
-                "Switching from {OldProvider} to {NewProvider} with model {Model}",
-                _currentConfig.Provider, newConfig.Provider, newConfig.Model);
+                "Creating new client for {NewProvider} with model {Model} at endpoint {Endpoint}",
+                newConfig.Provider, newConfig.Model, newConfig.Endpoint);
 
             var newClient = _clientFactory.CreateClient(newConfig);
             
@@ -454,7 +492,19 @@ Example valid response:
             );
 
             _currentConfig = newConfig;
+            
+            _logger.LogInformation(
+                "Successfully switched to {NewProvider}:{NewModel}, previous provider was {OldProvider}:{OldModel}",
+                _currentConfig.Provider, _currentConfig.Model, provider, model);
         }
+    }
+    
+    /// <summary>
+    /// Gets the current provider configuration
+    /// </summary>
+    public ProviderConfiguration GetCurrentProviderConfiguration()
+    {
+        return _currentConfig;
     }
 
     private ChatOptions GetChatOptions()

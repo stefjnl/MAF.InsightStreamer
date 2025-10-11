@@ -1,7 +1,7 @@
 using MAF.InsightStreamer.Application.DTOs;
 using MAF.InsightStreamer.Application.Interfaces;
 using MAF.InsightStreamer.Domain.Enums;
-using MAF.InsightStreamer.Infrastructure.Configuration;
+using MAF.InsightStreamer.Application.Configuration;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MAF.InsightStreamer.Api.Controllers
@@ -14,17 +14,20 @@ namespace MAF.InsightStreamer.Api.Controllers
         private readonly IContentOrchestratorService _orchestrator;
         private readonly IConfiguration _configuration;
         private readonly IThreadMigrationService _threadMigrationService;
+        private readonly ILogger<ModelController> _logger;
 
         public ModelController(
             IModelDiscoveryService discoveryService,
             IContentOrchestratorService orchestrator,
             IConfiguration configuration,
-            IThreadMigrationService threadMigrationService)
+            IThreadMigrationService threadMigrationService,
+            ILogger<ModelController> logger)
         {
             _discoveryService = discoveryService;
             _orchestrator = orchestrator;
             _configuration = configuration;
             _threadMigrationService = threadMigrationService;
+            _logger = logger;
         }
 
         [HttpGet("providers")]
@@ -60,6 +63,10 @@ namespace MAF.InsightStreamer.Api.Controllers
         [HttpPost("switch")]
         public async Task<IActionResult> SwitchModel([FromBody] SwitchModelRequest request)
         {
+            _logger.LogInformation(
+                "Model switching request received: Provider={Provider}, Model={Model}",
+                request.Provider, request.Model);
+
             var config = new ProviderConfiguration
             {
                 Provider = request.Provider,
@@ -70,16 +77,28 @@ namespace MAF.InsightStreamer.Api.Controllers
                     : null
             };
 
+            _logger.LogInformation(
+                "Preparing configuration for {Provider} with model {Model} at endpoint {Endpoint}",
+                config.Provider, config.Model, config.Endpoint);
+
             // Reset threads before switching to prevent context loss issues
             var resetWarning = await _threadMigrationService.ResetOnModelSwitchAsync();
             
+            _logger.LogInformation(
+                "Switching orchestrator provider to {Provider}:{Model}, thread reset warning: {Warning}",
+                config.Provider, config.Model, resetWarning ?? "None");
+            
             _orchestrator.SwitchProvider(config.Provider, config.Model, config.Endpoint, config.ApiKey);
             
-            return Ok(new
+            var response = new
             {
                 Message = $"Switched to {request.Provider} with model {request.Model}",
                 Warning = resetWarning
-            });
+            };
+
+            _logger.LogInformation("Successfully switched to {Provider}:{Model}", request.Provider, request.Model);
+            
+            return Ok(response);
         }
 
         private string GetEndpointForProvider(ModelProvider provider)

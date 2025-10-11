@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 using MAF.InsightStreamer.Domain.Enums;
-using MAF.InsightStreamer.Infrastructure.Configuration;
+using MAF.InsightStreamer.Application.Configuration;
 using MAF.InsightStreamer.Infrastructure.Providers;
 using Xunit;
 

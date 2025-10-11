@@ -1,5 +1,6 @@
 using MAF.InsightStreamer.Domain.Enums;
 using MAF.InsightStreamer.Domain.Models;
+using MAF.InsightStreamer.Application.Configuration;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -32,5 +33,11 @@ namespace MAF.InsightStreamer.Application.Interfaces
         /// <param name="endpoint">The new endpoint</param>
         /// <param name="apiKey">The API key (if required by the provider)</param>
         void SwitchProvider(ModelProvider provider, string model, string endpoint, string? apiKey);
+        
+        /// <summary>
+        /// Gets the current provider configuration
+        /// </summary>
+        /// <returns>Current provider configuration</returns>
+        ProviderConfiguration GetCurrentProviderConfiguration();
     }
 }

@@ -1,3 +1,4 @@
+using MAF.InsightStreamer.Application.Configuration;
 using MAF.InsightStreamer.Application.Interfaces;
 using MAF.InsightStreamer.Domain.Models;
 using MAF.InsightStreamer.Infrastructure.Orchestration;

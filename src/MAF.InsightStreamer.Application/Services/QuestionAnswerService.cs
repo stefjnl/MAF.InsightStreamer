@@ -110,7 +110,7 @@ public class QuestionAnswerService : IQuestionAnswerService
 
                 if (existingThread.SessionId != sessionId)
                 {
-                    _logger.LogWarning("Thread {ThreadId} belongs to session {ActualSessionId}, not {ExpectedSessionId}", 
+                    _logger.LogWarning("Thread {ThreadId} belongs to session {ActualSessionId}, not {ExpectedSessionId}",
                         threadId, existingThread.SessionId, sessionId);
                     throw new ThreadIdMismatchException(threadId, sessionId, existingThread.SessionId);
                 }
@@ -121,8 +121,12 @@ public class QuestionAnswerService : IQuestionAnswerService
             // Retrieve conversation history from DocumentSession
             var conversationHistory = documentSession.ConversationHistory.ToList();
 
+            // Log which provider will be used for this request
+            var currentProvider = _contentOrchestratorService.GetCurrentProviderConfiguration();
+            _logger.LogDebug("Calling orchestrator with {Provider}:{Model} for question in session {SessionId}, thread {ThreadId}",
+                currentProvider.Provider, currentProvider.Model, sessionId, actualThreadId);
+
             // Call orchestrator's AskQuestionAsync
-            _logger.LogInformation("Calling orchestrator for question in session {SessionId}, thread {ThreadId}", sessionId, actualThreadId);
             var orchestratorResponse = await _contentOrchestratorService.AskQuestionAsync(
                 question,
                 documentSession.DocumentChunks,
@@ -227,7 +231,8 @@ public class QuestionAnswerService : IQuestionAnswerService
                 documentSession.ConversationHistory.ToList(),
                 actualThreadId);
 
-            _logger.LogInformation("Successfully processed question for session {SessionId}, thread {ThreadId}", sessionId, actualThreadId);
+            _logger.LogInformation("Successfully processed question for session {SessionId}, thread {ThreadId} with {Provider}:{Model}",
+                sessionId, actualThreadId, currentProvider.Provider, currentProvider.Model);
             return result;
         }
         catch (SessionNotFoundException)
@@ -252,7 +257,9 @@ public class QuestionAnswerService : IQuestionAnswerService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error processing question for session {SessionId}, thread {ThreadId}", sessionId, threadId);
+            var currentProvider = _contentOrchestratorService.GetCurrentProviderConfiguration();
+            _logger.LogError(ex, "Error processing question for session {SessionId}, thread {ThreadId} with {Provider}:{Model}",
+                sessionId, threadId, currentProvider.Provider, currentProvider.Model);
             throw new InvalidOperationException("An error occurred while processing your question. Please try again later.", ex);
         }
     }

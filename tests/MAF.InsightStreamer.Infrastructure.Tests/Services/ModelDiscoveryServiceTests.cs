@@ -12,7 +12,7 @@ using Moq;
 using Moq.Protected;
 using MAF.InsightStreamer.Application.DTOs;
 using MAF.InsightStreamer.Domain.Enums;
-using MAF.InsightStreamer.Infrastructure.Configuration;
+using MAF.InsightStreamer.Application.Configuration;
 using MAF.InsightStreamer.Infrastructure.Services;
 using Xunit;
 
