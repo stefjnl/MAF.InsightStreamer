@@ -18,7 +18,7 @@ public static class ServiceCollectionExtensions
     {
         // Register configuration
         services.Configure<ProviderSettings>(
-            configuration.GetSection(ProviderSettings.SectionName));
+            configuration.GetSection("ProviderSettings"));
         
         // Register document processing configuration
         services.Configure<DocumentProcessingSettings>(
@@ -29,11 +29,13 @@ public static class ServiceCollectionExtensions
             configuration.GetSection("QuestionAnswer"));
 
         // Register model discovery configuration
-        services.Configure<ModelDiscoverySettings>(
-            configuration.GetSection("ModelDiscovery"));
+        services.Configure<ModelDiscoverySettings>(configuration.GetSection("ModelDiscoverySettings"));
 
-        // Register HttpClient for YouTubeService
-        services.AddHttpClient<IYouTubeService, YouTubeService>();
+        // Register MCP service as Singleton (maintains connection)
+        services.AddSingleton<McpYouTubeService>();
+
+        // Register YouTubeService with proper lifetime
+        services.AddScoped<IYouTubeService, YouTubeService>();
 
         // Register services with proper lifetimes
         services.AddScoped<IChunkingService, ChunkingService>();
