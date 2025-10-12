@@ -2,7 +2,6 @@
 class Toast {
     constructor() {
         this.container = null;
-        this.initContainer();
     }
 
     initContainer() {
@@ -93,5 +92,9 @@ class Toast {
     }
 }
 
-// Create a global instance
-window.ToastUtil = new Toast();
+// Initialize Toast only after DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    // Create a global instance
+    window.ToastUtil = new Toast();
+    window.ToastUtil.initContainer();
+});

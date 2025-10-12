@@ -109,10 +109,12 @@ class ConversationsDataAdapter {
   async load() {
     try {
       // Try to load from IndexedDB first
-      const dbItems = await this.dbAdapter.getAllThreads();
-      if (dbItems.length > 0) {
-        this.inMemoryData = dbItems;
-        return dbItems;
+      if (this.dbAdapter && typeof this.dbAdapter.getAllThreads === 'function') {
+        const dbItems = await this.dbAdapter.getAllThreads();
+        if (dbItems.length > 0) {
+          this.inMemoryData = dbItems;
+          return dbItems;
+        }
       }
       
       // Fallback to localStorage
@@ -122,22 +124,8 @@ class ConversationsDataAdapter {
         this.inMemoryData = localStorageItems;
         return localStorageItems;
       } else {
-        // Seed with 200 placeholder items
-        const items = [];
-        for (let i = 1; i <= 200; i++) {
-          const snippetWords = ['lorem', 'ipsum', 'dolor', 'sit', 'amet', 'consectetur', 'adipiscing', 'elit', 'sed', 'do', 'eiusmod', 'tempor', 'incididunt', 'ut', 'labore', 'et', 'dolore', 'magna', 'aliqua'];
-          const randomSnippet = Array.from({ length: 8 }, () =>
-            snippetWords[Math.floor(Math.random() * snippetWords.length)]
-          ).join(' ');
-          
-          items.push({
-            id: `thread-${i}`,
-            title: `Thread ${i}`,
-            lastSnippet: randomSnippet,
-            unread: Math.random() > 0.7, // 30% chance of being unread
-            archived: false
-          });
-        }
+        // Use mock data for development
+        const items = this.generateMockData();
         await this.save(items);
         this.inMemoryData = items;
         return items;
@@ -149,10 +137,31 @@ class ConversationsDataAdapter {
     }
   }
 
+  generateMockData() {
+    const mockData = [
+      { id: 'thread-1', title: 'Project Planning Discussion', lastSnippet: 'Let\'s plan the next steps for the project', unread: true },
+      { id: 'thread-2', title: 'API Integration Issues', lastSnippet: 'The authentication is failing on the staging server', unread: false },
+      { id: 'thread-3', title: 'Database Optimization', lastSnippet: 'We need to optimize the query performance', unread: true },
+      { id: 'thread-4', title: 'UI Design Review', lastSnippet: 'The new dashboard layout looks great', unread: false },
+      { id: 'thread-5', title: 'Security Audit Findings', lastSnippet: 'Found some vulnerabilities in the upload feature', unread: false },
+      { id: 'thread-6', title: 'Performance Testing Results', lastSnippet: 'Load testing shows improvement after optimization', unread: true },
+      { id: 'thread-7', title: 'Documentation Updates', lastSnippet: 'Updated the API documentation with new endpoints', unread: false },
+      { id: 'thread-8', title: 'Client Feedback Session', lastSnippet: 'The client is happy with the progress so far', unread: false },
+      { id: 'thread-9', title: 'Team Retrospective', lastSnippet: 'Discussing what went well in the last sprint', unread: false },
+      { id: 'thread-10', title: 'Deployment Strategy', lastSnippet: 'Planning the blue-green deployment approach', unread: true }
+    ];
+    return mockData;
+  }
+
   async save(items) {
     try {
       // Save to IndexedDB
-      await this.dbAdapter.putThreads(items);
+      if (this.dbAdapter && typeof this.dbAdapter.putThreads === 'function') {
+        await this.dbAdapter.putThreads(items);
+      } else {
+        // Fallback to localStorage only if IndexedDB adapter is not available
+        console.warn('IndexedDB adapter not available, saving to localStorage only');
+      }
       this.inMemoryData = items;
       
       // Also save to localStorage for development fallback
@@ -405,11 +414,23 @@ class ConversationsUI {
     // Set aria-selected if this is the active item
     if (index === this.activeIndex) {
       itemElement.setAttribute('aria-selected', 'true');
+      itemElement.classList.add('bg-indigo-50', 'dark:bg-indigo-900/30');
     }
     
     // Create content wrapper
     const contentWrapper = document.createElement('div');
     contentWrapper.className = 'flex-1 min-w-0';
+    
+    // Unread indicator
+    if (item.unread) {
+      const unreadElement = document.createElement('div');
+      unreadElement.className = 'w-2 h-2 rounded-full bg-indigo-500 mr-2 flex-shrink-0';
+      contentWrapper.appendChild(unreadElement);
+    }
+    
+    // Title and snippet container
+    const textContainer = document.createElement('div');
+    textContainer.className = 'min-w-0';
     
     // Title
     const titleElement = document.createElement('div');
@@ -418,18 +439,12 @@ class ConversationsUI {
     
     // Snippet
     const snippetElement = document.createElement('div');
-    snippetElement.className = 'text-xs text-neutral-500 dark:text-neutral-400 line-clamp-1';
+    snippetElement.className = 'text-xs text-neutral-500 dark:text-neutral-400 truncate mt-1';
     snippetElement.textContent = item.lastSnippet;
     
-    contentWrapper.appendChild(titleElement);
-    contentWrapper.appendChild(snippetElement);
-    
-    // Unread indicator
-    if (item.unread) {
-      const unreadElement = document.createElement('div');
-      unreadElement.className = 'w-2 h-2 rounded-full bg-indigo-500 mr-2 flex-shrink-0';
-      contentWrapper.insertBefore(unreadElement, contentWrapper.firstChild);
-    }
+    textContainer.appendChild(titleElement);
+    textContainer.appendChild(snippetElement);
+    contentWrapper.appendChild(textContainer);
     
     // Action buttons container (hidden by default, shown on hover)
     const actionsContainer = document.createElement('div');

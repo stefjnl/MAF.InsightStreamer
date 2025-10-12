@@ -5,44 +5,63 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="color-scheme" content="light dark">
     <title>MAF.InsightStreamer</title>
-    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="/styling/tokens.css">
+    <script src="https://cdn.tailwindcss.com"></script>
     <!-- Preline UI intentionally deferred to avoid build pipeline dependencies -->
-    <script src="js/ui/toast.js"></script>
-    <script src="js/model-selector.js"></script>
-    <script src="/js/ui/conversations.js"></script>
+    <script src="js/ui/toast.js" defer></script>
+    <script src="js/model-selector.js" defer></script>
+    <script src="/js/ui/conversations.js" defer></script>
+    <style>
+        /* CSS for token/latency metadata */
+        .token-latency {
+            display: block;
+            text-align: right;
+            margin-top: 0.25rem;
+            font-size: var(--text-sm);
+            color: var(--text-muted);
+        }
+    </style>
 </head>
 <body class="min-h-screen bg-neutral-50 dark:bg-neutral-950">
     <!-- Skip to content link for accessibility -->
     <a href="#chatLog" class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:bg-white dark:focus:bg-neutral-900 focus:text-neutral-900 dark:focus:text-neutral-100 focus:px-3 focus:py-2 focus:rounded-md">Skip to chat</a>
     
     <!-- Sticky Header -->
-    <header role="banner" class="sticky top-0 z-30 backdrop-blur border-b border-neutral-200/60 dark:border-neutral-800/60 bg-white/70 dark:bg-neutral-900/60">
-        <div class="container mx-auto max-w-[1024px] px-4 py-3 flex items-center justify-between">
+    <header role="banner" class="sticky top-0 z-30 backdrop-blur border-b border-neutral-200/60 dark:border-neutral-800/60 bg-white/70 dark:bg-neutral-900/60 hairline surface">
+        <div class="container mx-auto max-w-[1024px] px-[var(--gutter-x)] py-3 flex items-center justify-between">
             <div class="flex items-center space-x-4">
+                <button id="hamburgerBtn" type="button" class="lg:hidden p-2 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800" aria-controls="sidebar-drawer" aria-expanded="false" aria-label="Open sidebar">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                    </svg>
+                </button>
                 <h1 class="text-xl font-semibold text-gray-900 dark:text-white">InsightStreamer</h1>
                 
                 <!-- Provider and Model Selection -->
                 <div class="flex items-center space-x-2">
                     <div>
                         <label for="providerSelect" class="block text-xs font-medium text-gray-500 dark:text-gray-400">Provider</label>
-                        <select id="providerSelect" class="w-32 px-2 py-1 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
+                        <select id="providerSelect" class="min-w-[120px] px-3 py-2 text-sm surface rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white" aria-label="Select AI Provider">
                             <option value="">Loading...</option>
                         </select>
                     </div>
                     
-                    <div>
+                    <div class="relative">
                         <label for="modelSelect" class="block text-xs font-medium text-gray-500 dark:text-gray-400">Model</label>
-                        <select id="modelSelect" class="w-40 px-2 py-1 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white" disabled>
-                            <option value="">Select provider first</option>
-                        </select>
+                        <div class="flex items-center">
+                            <select id="modelSelect" class="min-w-[150px] px-3 py-2 text-sm surface rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white" disabled aria-label="Select AI Model">
+                                <option value="">Select provider first</option>
+                            </select>
+                            <!-- Model Status Dot -->
+                            <div id="modelStatusDot" class="ml-2 w-3 h-3 rounded-full bg-slate-400" title="Model status" data-status="unknown" role="status" aria-live="polite"></div>
+                        </div>
                     </div>
                 </div>
                 
                 <!-- Status Indicator -->
                 <div role="status">
                     <div class="flex items-center space-x-1">
-                        <div id="statusDot" class="w-3 h-3 rounded-full bg-slate-400" title="Loading..."></div>
+                        <div id="statusDot" class="w-3 h-3 rounded-full bg-slate-400" title="Loading..." role="status" aria-live="polite"></div>
                         <span id="statusText" class="text-xs text-gray-500 dark:text-gray-400" aria-live="polite">Loading...</span>
                     </div>
                 </div>
@@ -50,10 +69,10 @@
             
             <!-- New Chat Button and Theme Toggle -->
             <div class="flex items-center gap-2">
-                <button id="themeToggle" class="px-3 py-2 text-sm rounded-md border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition font-medium" aria-pressed="false">
+                <button id="themeToggle" class="px-3 py-2 text-sm rounded-md border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition font-medium" aria-pressed="false" aria-label="Toggle theme between light and dark mode">
                     System
                 </button>
-                <button id="newChatBtn" class="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition font-medium">
+                <button id="newChatBtn" class="px-4 py-2 text-sm button-accent hover:bg-indigo-700 transition font-medium" aria-label="Start a new chat">
                     New Chat
                 </button>
             </div>
@@ -61,10 +80,11 @@
     </header>
 
     <!-- Provider Status Banner -->
-    <div id="providerBanner" class="hidden mx-auto max-w-[1024px] px-4 py-2 mt-2 rounded-md border text-sm flex items-start justify-between gap-3 bg-amber-50 border-amber-200 text-amber-800 dark:bg-neutral-900 dark:border-neutral-800 dark:text-amber-300">
+    <div id="providerBanner" class="hidden mx-auto max-w-[1024px] px-4 py-2 mt-2 rounded-md border text-sm flex items-start justify-between gap-3 bg-amber-50 border-amber-200 text-amber-800 dark:bg-neutral-900 dark:border-neutral-800 dark:text-amber-300" role="alert" aria-live="assertive">
         <div role="status" class="flex items-center gap-2"><span class="inline-block w-2 h-2 rounded-full bg-amber-500"></span><span id="providerBannerText">Provider issue detected</span></div>
         <div class="flex items-center gap-2">
-          <button id="providerRetryBtn" class="text-xs px-2 py-1 rounded border border-amber-300 hover:bg-amber-100 dark:border-neutral-700 dark:hover:bg-neutral-800 transition">Retry</button>
+          <button id="providerRetryBtn" class="text-xs px-2 py-1 rounded border border-amber-300 hover:bg-amber-100 dark:border-neutral-700 dark:hover:bg-neutral-800 transition" aria-label="Retry provider connection">Retry</button>
+          <button id="providerSwitchBtn" class="text-xs px-2 py-1 rounded border border-amber-300 hover:bg-amber-100 dark:border-neutral-700 dark:hover:bg-neutral-800 transition" aria-label="Switch to another provider">Switch Provider</button>
           <button id="providerBannerClose" class="text-xs px-2 py-1 rounded border border-transparent hover:bg-neutral-200 dark:hover:bg-neutral-800 transition" aria-label="Close banner">Close</button>
         </div>
       </div>
@@ -75,31 +95,41 @@
         <aside role="complementary" class="hidden lg:block h-[calc(100vh-64px)] sticky top-[64px] border-r border-neutral-200 dark:border-neutral-800 overflow-y-auto">
             <div class="p-4">
                 <h2 class="font-medium text-gray-700 dark:text-gray-300 mb-2">Conversations</h2>
-                <label for="convFilter" class="sr-only">Filter conversations</label>
-                <input id="convFilter" type="text" placeholder="Filter conversations…" class="w-full px-3 py-2 rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 focus:ring-2 focus:ring-indigo-500">
-                <div id="convListContainer" role="listbox" aria-label="Conversations" class="mt-2"></div>
+                <label for="convFilter" class="sr-only">Search conversations</label>
+                <div class="relative mb-2">
+                    <input id="convFilter" type="search" placeholder="Search conversations..." class="w-full px-3 py-2 surface hairline rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 pl-10" role="combobox" aria-expanded="false" aria-controls="convListContainer" aria-autocomplete="list" aria-label="Search conversations">
+                    <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                    </div>
+                </div>
+                <div id="convListContainer" role="listbox" aria-label="Conversations" class="overflow-y-auto" tabindex="0" style="max-height: calc(100vh - 150px);"></div>
             </div>
         </aside>
-
+        
         <!-- Main Chat Column -->
         <div role="main" class="flex flex-col min-h-[calc(100vh-64px)]">
             <!-- Chat content area - place existing content here -->
             <div class="flex-1">
-                <div class="max-w-4xl mx-auto">
+                <div class="max-w-[1024px] mx-auto px-[var(--gutter-x)] py-6">
                     <!-- Header -->
                     <header class="text-center mb-12 hidden"> <!-- Hidden since we have sticky header -->
                         <h1 class="text-4xl font-bold text-gray-900 mb-2">MAF.InsightStreamer</h1>
                         <p class="text-gray-600">AI-Powered Content Analysis</p>
                     </header>
-                    
-                    
+            
                     <!-- Tab Navigation -->
                     <div class="bg-white shadow-md rounded-lg p-2 mb-8">
-                        <div class="flex">
+                        <div class="flex" role="tablist" aria-label="Content type selection">
                             <button
                                 id="youtubeTab"
                                 onclick="switchTab('youtube')"
                                 class="flex-1 py-2 px-4 rounded-lg font-medium transition bg-blue-600 text-white"
+                                role="tab"
+                                aria-selected="true"
+                                aria-controls="youtubeSection"
+                                tabindex="0"
                             >
                                 YouTube Analysis
                             </button>
@@ -107,6 +137,10 @@
                                 id="documentTab"
                                 onclick="switchTab('document')"
                                 class="flex-1 py-2 px-4 rounded-lg font-medium transition text-gray-700 hover:bg-gray-100"
+                                role="tab"
+                                aria-selected="false"
+                                aria-controls="documentSection"
+                                tabindex="-1"
                             >
                                 Document Analysis
                             </button>
@@ -114,7 +148,7 @@
                     </div>
 
                     <!-- YouTube Input Section -->
-                    <div id="youtubeSection" class="bg-white shadow-md rounded-lg p-6 mb-8">
+                    <div id="youtubeSection" class="bg-white shadow-md rounded-lg p-6 mb-8" role="tabpanel" aria-labelledby="youtubeTab">
                         <label for="videoUrl" class="block text-sm font-medium text-gray-700 mb-2">
                             YouTube Video URL
                         </label>
@@ -124,10 +158,12 @@
                                 id="videoUrl"
                                 placeholder="https://www.youtube.com/watch?v=..."
                                 class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                aria-label="YouTube video URL"
                             />
                             <button
                                 onclick="analyzeVideo()"
                                 class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition font-medium"
+                                aria-label="Analyze YouTube video"
                             >
                                 Analyze
                             </button>
@@ -135,7 +171,7 @@
                     </div>
 
                     <!-- Document Upload Section -->
-                    <div id="documentSection" class="hidden bg-white shadow-md rounded-lg p-6 mb-8">
+                    <div id="documentSection" class="hidden bg-white shadow-md rounded-lg p-6 mb-8" role="tabpanel" aria-labelledby="documentTab">
                         <label for="documentFile" class="block text-sm font-medium text-gray-700 mb-2">
                             Upload Document (PDF, Word, Markdown, or Plain Text)
                         </label>
@@ -145,6 +181,7 @@
                                 id="documentFile"
                                 accept=".pdf,.docx,.md,.txt"
                                 class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                                aria-label="Upload document file"
                             />
                             <p class="text-xs text-gray-500 mt-2">Maximum file size: 10MB. Supported formats: PDF, DOCX, MD, TXT</p>
                         </div>
@@ -152,6 +189,7 @@
                             <button
                                 onclick="analyzeDocument()"
                                 class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition font-medium"
+                                aria-label="Analyze uploaded document"
                             >
                                 Analyze Document
                             </button>
@@ -213,14 +251,31 @@
                             </div>
                             
                             <!-- Chat Container -->
-                            <div id="chatContainer" class="border border-gray-300 rounded-lg mb-4">
+                            <div id="chatContainer" class="max-w-[1024px] mx-auto px-[var(--gutter-x)]">
                                 <!-- Messages Container -->
-                                <section id="chatLog" role="log" aria-live="polite" tabindex="-1" class="space-y-4 p-4">
-                                    <!-- Messages will be inserted here -->
-                                    <div id="welcomeMessage" class="text-center text-gray-500 py-8">
-                                        Ask a question about the document to get started
-                                    </div>
-                                </section>
+                                <div class="max-w-[1024px] mx-auto px-[var(--gutter-x)] py-6">
+                                    <section id="chatLog" role="log" aria-live="polite" tabindex="-1" class="space-y-4">
+                                        <!-- Messages will be inserted here -->
+                                        <div id="welcomeMessage" class="text-center text-gray-500 py-8">
+                                            Ask a question about the document to get started
+                                        </div>
+                                        <!-- Empty Prompts Grid -->
+                                        <div id="emptyPromptsGrid" class="hidden grid grid-cols-1 gap-3 max-w-2xl mx-auto">
+                                            <div class="p-4 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-750 cursor-pointer transition text-center" data-prompt="Explain quantum computing in simple terms" role="button" tabindex="0" aria-label="Prompt: Explain quantum computing in simple terms">
+                                                <span class="font-medium">Explain quantum computing in simple terms</span>
+                                            </div>
+                                            <div class="p-4 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-750 cursor-pointer transition text-center" data-prompt="What are the key benefits of renewable energy?" role="button" tabindex="0" aria-label="Prompt: What are the key benefits of renewable energy?">
+                                                <span class="font-medium">What are the key benefits of renewable energy?</span>
+                                            </div>
+                                            <div class="p-4 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-750 cursor-pointer transition text-center" data-prompt="How does photosynthesis work in plants?" role="button" tabindex="0" aria-label="Prompt: How does photosynthesis work in plants?">
+                                                <span class="font-medium">How does photosynthesis work in plants?</span>
+                                            </div>
+                                            <div class="p-4 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-750 cursor-pointer transition text-center" data-prompt="Summarize the main points of this document" role="button" tabindex="0" aria-label="Prompt: Summarize the main points of this document">
+                                                <span class="font-medium">Summarize the main points of this document</span>
+                                            </div>
+                                        </div>
+                                    </section>
+                                </div>
                                 
                                 <!-- Input Container -->
                                 <div class="p-3 border-t border-gray-300 bg-white rounded-b-lg">
@@ -236,6 +291,30 @@
                                             id="sendButton"
                                             onclick="sendQuestion()"
                                             class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition font-medium"
+                                        >
+                                            Send
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                                                                </div>
+                                                            </section>
+                        
+                                <!-- Input Container -->
+                                <div class="p-3 border-t border-gray-300 bg-white rounded-b-lg">
+                                    <div class="flex gap-2">
+                                        <textarea
+                                            id="questionInput"
+                                            placeholder="Type your question here..."
+                                            class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                                            rows="1"
+                                            onkeypress="handleComposerKeyPress(event)"
+                                        ></textarea>
+                                        <button
+                                            id="sendButton"
+                                            onclick="sendQuestion()"
+                                            class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition font-medium"
+                                            aria-label="Send message"
                                         >
                                             Send
                                         </button>
@@ -261,29 +340,29 @@
     </main>
 
     <!-- Sticky Bottom Composer -->
-    <div class="sticky bottom-0 backdrop-blur border-t bg-white/70 dark:bg-neutral-900/60">
-        <div class="container mx-auto max-w-[1024px] px-4 py-3">
+    <div class="sticky bottom-0 backdrop-blur border-t bg-white/70 dark:bg-neutral-900/60 hairline surface-alt z-20">
+        <div class="container mx-auto max-w-[1024px] px-[var(--gutter-x)] py-3">
             <!-- Quick chips and mode toggles row -->
             <div class="flex items-center gap-2 mb-2">
                 <!-- Quick chips -->
-                <button type="button" class="quick-chip px-2 py-1 text-xs bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700 transition" data-chip="Summarize">Summarize</button>
-                <button type="button" class="quick-chip px-2 py-1 text-xs bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700 transition" data-chip="Fix grammar">Fix grammar</button>
-                <button type="button" class="quick-chip px-2 py-1 text-xs bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700 transition" data-chip="Make concise">Make concise</button>
+                <button type="button" class="quick-chip px-2 py-1 text-xs bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700 transition" data-chip="Summarize" aria-label="Quick action: Summarize">Summarize</button>
+                <button type="button" class="quick-chip px-2 py-1 text-xs bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700 transition" data-chip="Fix grammar" aria-label="Quick action: Fix grammar">Fix grammar</button>
+                <button type="button" class="quick-chip px-2 py-1 text-xs bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700 transition" data-chip="Make concise" aria-label="Quick action: Make concise">Make concise</button>
                 
                 <!-- Mode toggles -->
                 <div class="ml-auto flex gap-1">
-                    <button type="button" id="defaultModeBtn" class="mode-toggle px-2 py-1 text-xs bg-blue-600 text-white rounded-md" data-mode="default">Default</button>
-                    <button type="button" id="systemModeBtn" class="mode-toggle px-2 py-1 text-xs bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 rounded-md" data-mode="system">System mode</button>
+                    <button type="button" id="defaultModeBtn" class="mode-toggle px-2 py-1 text-xs bg-blue-600 text-white rounded-md" data-mode="default" aria-pressed="true" aria-label="Default mode">Default</button>
+                    <button type="button" id="systemModeBtn" class="mode-toggle px-2 py-1 text-xs bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 rounded-md" data-mode="system" aria-pressed="false" aria-label="System mode">System mode</button>
                 </div>
             </div>
             
-            <textarea id="composerInput" class="w-full resize-none rounded-xl border-neutral-300 dark:border-neutral-700 focus:ring-2 focus:ring-indigo-500" rows="1" placeholder="Type your message here..." onkeypress="handleComposerKeyPress(event)"></textarea>
+            <textarea id="composerInput" class="w-full resize-none rounded-xl border border-neutral-300 dark:border-neutral-700 focus:ring-2 focus:ring-indigo-500 focus:outline-none focus:ring-offset-0" rows="1" placeholder="Type your message here..." aria-label="Type your message here" role="textbox" aria-multiline="true"></textarea>
             
             <!-- Attachments area -->
-            <div id="attachmentPills" class="flex flex-wrap gap-2 mt-2"></div>
+            <div id="attachmentPills" class="flex flex-wrap gap-2 mt-2" aria-label="Attached files"></div>
             
             <!-- Hidden file input -->
-            <input type="file" id="composerFileInput" class="hidden" multiple>
+            <input type="file" id="composerFileInput" class="hidden" multiple aria-label="Attach files">
             
             <!-- Slash commands menu -->
             <div id="slashMenu" class="hidden absolute z-50 w-64 max-h-60 overflow-y-auto rounded-md border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 shadow-lg" role="menu" aria-label="Command menu">
@@ -293,7 +372,7 @@
             </div>
             
             <div id="composerStatusRow" class="flex items-center justify-between mt-2">
-                <div id="composerThinking" class="hidden text-xs text-neutral-500 dark:text-neutral-400 flex items-center gap-2">
+                <div id="composerThinking" class="hidden text-xs text-neutral-500 dark:text-neutral-400 flex items-center gap-2" role="status" aria-live="polite">
                     <span class="inline-flex h-2 w-2 rounded-full bg-indigo-500 animate-pulse"></span> Thinking…
                 </div>
                 <div class="flex items-center gap-2">
@@ -304,6 +383,51 @@
         </div>
     </div>
     
+    <!-- Sidebar Drawer -->
+    <aside id="sidebar-drawer" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="drawer-title" class="fixed left-0 top-0 bottom-0 w-[280px] max-w-[85vw] bg-[var(--surface)] border-r hairline shadow-md z-40 hidden">
+        <h2 id="drawer-title" class="sr-only">Navigation</h2>
+        <button type="button" class="absolute top-4 right-4 p-1 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800" aria-label="Close sidebar" onclick="window.layoutController?.closeDrawer()">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+        </button>
+        <div class="p-4">
+            <h2 class="font-medium text-gray-700 dark:text-gray-300 mb-2">Conversations</h2>
+            <label for="convFilter" class="sr-only">Search conversations</label>
+            <div class="relative mb-2">
+                <input id="convFilter" type="search" placeholder="Search conversations..." class="w-full px-3 py-2 surface hairline rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 pl-10" role="combobox" aria-expanded="false" aria-controls="convListContainer" aria-autocomplete="list" aria-label="Search conversations">
+                <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                </div>
+            </div>
+            <div id="convListContainer" role="listbox" aria-label="Conversations" class="overflow-y-auto" tabindex="0" style="max-height: calc(100vh - 150px);"></div>
+        </div>
+    </aside>
+
+    <!-- Sidebar Scrim -->
+    <div id="sidebar-scrim" class="fixed inset-0 bg-black/40 z-30 hidden"></div>
+
+    <!-- Diagnostics Modal -->
+    <div id="diagnosticsOverlay" class="hidden fixed inset-0 z-50 bg-black/40" aria-hidden="true"></div>
+    <div id="diagnosticsModal" role="dialog" aria-modal="true" aria-labelledby="diagTitle" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="w-full max-w-lg rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-lg">
+          <div class="p-4 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between">
+            <h2 id="diagTitle" class="text-base font-semibold">Model Discovery Diagnostics</h2>
+            <button id="diagClose" class="px-2 py-1 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800" aria-label="Close diagnostics">✕</button>
+          </div>
+          <div class="p-4 space-y-3">
+            <p id="diagMessage" class="text-sm text-neutral-700 dark:text-neutral-300"></p>
+            <pre id="diagDetails" class="text-xs bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded p-3 overflow-auto max-h-60"></pre>
+            <div class="flex items-center gap-2">
+              <button id="diagRetry" class="text-xs px-3 py-2 rounded border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition" aria-label="Retry model discovery">Retry</button>
+              <span id="diagBackoff" class="text-xs text-neutral-500"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    
     <!-- Prism.js CDN -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1/themes/prism.min.css">
     <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-core.min.js"></script>
@@ -313,17 +437,22 @@
     </script>
     
     <!-- Message component renderer -->
-    <script src="/js/ui/messages.js"></script>
+    <script src="/js/ui/messages.js" defer></script>
     <!-- Markdown parser utility -->
-    <script src="/js/ui/markdown.js"></script>
+    <script src="/js/ui/markdown.js" defer></script>
     <!-- Streaming controller -->
-    <script src="/js/ui/streaming.js"></script>
+    <script src="/js/ui/streaming.js" defer></script>
     <!-- Composer controller -->
-    <script src="/js/ui/composer.js"></script>
+    <script src="/js/ui/composer.js" defer></script>
     <!-- Error handling utilities -->
-    <script src="/js/ui/errors.js"></script>
+    <script src="/js/ui/errors.js" defer></script>
     <!-- Theme controller -->
-    <script src="/js/ui/theme.js"></script>
+    <script src="/js/ui/theme.js" defer></script>
+    <!-- Layout controller -->
+    <script src="/js/ui/layout.js" defer></script>
+    
+    <!-- Hidden element for screen reader announcements -->
+    <div id="screen-reader-announcements" class="sr-only" role="status" aria-live="polite"></div>
     
     <script>
         // Global variables for conversational Q&A
@@ -341,22 +470,36 @@
                 // Activate YouTube tab
                 youtubeTab.classList.add('bg-blue-600', 'text-white');
                 youtubeTab.classList.remove('text-gray-700', 'hover:bg-gray-100');
+                youtubeTab.setAttribute('aria-selected', 'true');
+                youtubeTab.setAttribute('tabindex', '0');
+                
                 documentTab.classList.remove('bg-blue-600', 'text-white');
                 documentTab.classList.add('text-gray-700', 'hover:bg-gray-100');
+                documentTab.setAttribute('aria-selected', 'false');
+                documentTab.setAttribute('tabindex', '-1');
                 
                 // Show YouTube section
                 youtubeSection.classList.remove('hidden');
+                youtubeSection.setAttribute('hidden', 'false');
                 documentSection.classList.add('hidden');
+                documentSection.setAttribute('hidden', 'true');
             } else {
                 // Activate Document tab
                 documentTab.classList.add('bg-blue-600', 'text-white');
                 documentTab.classList.remove('text-gray-700', 'hover:bg-gray-100');
+                documentTab.setAttribute('aria-selected', 'true');
+                documentTab.setAttribute('tabindex', '0');
+                
                 youtubeTab.classList.remove('bg-blue-600', 'text-white');
                 youtubeTab.classList.add('text-gray-700', 'hover:bg-gray-100');
+                youtubeTab.setAttribute('aria-selected', 'false');
+                youtubeTab.setAttribute('tabindex', '-1');
                 
                 // Show Document section
                 documentSection.classList.remove('hidden');
+                documentSection.setAttribute('hidden', 'false');
                 youtubeSection.classList.add('hidden');
+                youtubeSection.setAttribute('hidden', 'true');
             }
             
             // Hide results when switching tabs
@@ -626,26 +769,17 @@
             if (window.Streaming) {
                 window.Streaming.init();
             }
+            
+            // Check if chat is empty and show empty prompts if needed
+            setTimeout(() => {
+                const chatLog = document.getElementById('chatLog');
+                if (chatLog && chatLog.children.length <= 1) { // Only if there are no messages or just the welcome message
+                    if (window.Errors && typeof window.Errors.showEmptyPrompts === 'function') {
+                        window.Errors.showEmptyPrompts();
+                    }
+                }
+            }, 100);
         });
     </script>
-    
-    <!-- Diagnostics Modal -->
-    <div id="diagnosticsOverlay" class="hidden fixed inset-0 z-50 bg-black/40"></div>
-    <div id="diagnosticsModal" role="dialog" aria-modal="true" aria-labelledby="diagTitle" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div class="w-full max-w-lg rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-lg">
-          <div class="p-4 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between">
-            <h2 id="diagTitle" class="text-base font-semibold">Model Discovery Diagnostics</h2>
-            <button id="diagClose" class="px-2 py-1 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800" aria-label="Close diagnostics">✕</button>
-          </div>
-          <div class="p-4 space-y-3">
-            <p id="diagMessage" class="text-sm text-neutral-700 dark:text-neutral-300"></p>
-            <pre id="diagDetails" class="text-xs bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded p-3 overflow-auto max-h-60"></pre>
-            <div class="flex items-center gap-2">
-              <button id="diagRetry" class="text-xs px-3 py-2 rounded border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition">Retry</button>
-              <span id="diagBackoff" class="text-xs text-neutral-500"></span>
-            </div>
-          </div>
-        </div>
-      </div>
 </body>
 </html>

@@ -66,11 +66,11 @@ window.Messages = (function() {
                     // Start code block
                     const langMatch = /^```(\w+)/.exec(line);
                     const lang = langMatch ? langMatch[1] : '';
-                    result += `<div class="flex items-center justify-between mb-2">
-                        <span class="text-[11px] px-2 py-0.5 rounded bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">${lang}</span>
-                        <button class="code-copy-btn text-xs px-2 py-1 rounded border border-neutral-200 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition" title="Copy code">Copy</button>
+                    result += `<div class="flex items-center justify-between mb-0 hairline border-b surface-alt rounded-t-[var(--radius-lg)]">
+                        <span class="text-[11px] px-2 py-1 rounded">${lang || 'code'}</span>
+                        <button class="code-copy-btn text-[11px] px-2 py-1 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 transition" aria-label="Copy code block">Copy</button>
                     </div>
-                    <pre class="bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-lg overflow-auto"><code class="language-${lang}">`;
+                    <pre class="bg-neutral-50 dark:bg-neutral-900 border border-t-0 border-neutral-200 dark:border-neutral-800 rounded-b-[var(--radius-lg)] overflow-auto"><code class="language-${lang}">`;
                     inCodeBlock = true;
                 }
                 continue;
@@ -227,6 +227,7 @@ window.Messages = (function() {
     function renderMessage(message) {
         const messageElement = document.createElement('div');
         messageElement.setAttribute('role', 'article');
+        messageElement.className = 'group relative';
         
         // Set aria-label based on role and model if available
         if (message.role === 'assistant') {
@@ -240,20 +241,30 @@ window.Messages = (function() {
         
         // Determine classes based on role
         let bubbleClasses;
+        let messageContainerClasses;
         if (message.role === 'assistant') {
-            bubbleClasses = 'rounded-xl p-4 bg-white border border-neutral-200 shadow-sm dark:bg-neutral-900 dark:border-neutral-800';
+            // Left-aligned assistant message
+            messageContainerClasses = 'flex justify-start';
+            bubbleClasses = 'surface rounded-[var(--radius-lg)] text-base max-w-[75ch] relative group';
         } else if (message.role === 'user') {
-            bubbleClasses = 'rounded-xl p-4 bg-indigo-600 text-white shadow-sm';
+            // Right-aligned user message
+            messageContainerClasses = 'flex justify-end';
+            bubbleClasses = 'surface-alt rounded-[var(--radius-lg)] text-base max-w-[75ch] bg-indigo-600 text-white';
         } else {
-            bubbleClasses = 'rounded-xl p-4 bg-white border border-neutral-200 shadow-sm dark:bg-neutral-900 dark:border-neutral-800';
+            messageContainerClasses = 'flex justify-start';
+            bubbleClasses = 'surface rounded-[var(--radius-lg)] text-base max-w-[75ch]';
         }
         
         // Format timestamp
         const timestamp = formatTimestamp(message.timestamp);
         
+        // Create message container with alignment
+        const messageContainer = document.createElement('div');
+        messageContainer.className = messageContainerClasses;
+        
         // Create bubble content
         const bubbleElement = document.createElement('div');
-        bubbleElement.className = bubbleClasses + ' text-sm md:text-base leading-6 md:leading-7';
+        bubbleElement.className = bubbleClasses + ' py-[var(--bubble-py)] px-[var(--bubble-px)] border hairline';
         if (message.role === 'assistant') {
             bubbleElement.setAttribute('aria-busy', 'false');
         }
@@ -261,74 +272,94 @@ window.Messages = (function() {
         // Parse and set content
         bubbleElement.innerHTML = parseMarkdown(message.content);
         
-        messageElement.appendChild(bubbleElement);
-        
-        // Add timestamp
+        // Add timestamp that appears on hover
         const timeElement = document.createElement('time');
-        timeElement.className = 'text-xs text-neutral-500 dark:text-neutral-400';
+        timeElement.className = 'absolute right-0 -top-5 text-xs text-neutral-500 dark:text-neutral-400 opacity-0 group-hover:opacity-100 transition-opacity';
         timeElement.title = timestamp.iso;
         timeElement.textContent = timestamp.display;
+        timeElement.setAttribute('aria-hidden', 'true');
+        
+        messageElement.appendChild(messageContainer);
+        messageContainer.appendChild(bubbleElement);
         messageElement.appendChild(timeElement);
         
-        // Add toolbar for assistant messages
+        // Add toolbar that appears on hover/tap
+        const toolbar = document.createElement('div');
+        toolbar.className = 'absolute top-0 right-0 mt-2 mr-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-md shadow-sm p-1';
+        
+        // Copy button
+        const copyBtn = document.createElement('button');
+        copyBtn.id = `msg-copy-${message.id}`;
+        copyBtn.className = 'text-xs p-1.5 rounded hover:bg-neutral-100 dark:hover:bg-neutral-700 transition';
+        copyBtn.setAttribute('aria-label', 'Copy message');
+        copyBtn.title = 'Copy message';
+        copyBtn.innerHTML = '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>';
+        copyBtn.addEventListener('click', async function() {
+            const success = await copyToClipboard(message.content);
+            if (success && window.ToastUtil) {
+                window.ToastUtil.show('Message copied to clipboard', 'success', 2000);
+            }
+        });
+        
+        toolbar.appendChild(copyBtn);
+        
+        // Add Regenerate button for assistant messages only
         if (message.role === 'assistant') {
-            const toolbar = document.createElement('div');
-            toolbar.className = 'mt-2 flex items-center gap-2';
-            
-            // Copy button
-            const copyBtn = document.createElement('button');
-            copyBtn.id = `msg-copy-${message.id}`;
-            copyBtn.className = 'text-xs px-2 py-1 rounded border border-neutral-200 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition';
-            copyBtn.setAttribute('aria-label', 'Copy message');
-            copyBtn.title = 'Copy message';
-            copyBtn.textContent = 'Copy';
-            copyBtn.addEventListener('click', function() {
-                copyToClipboard(message.content);
-            });
-            
-            // Regenerate button
             const regenerateBtn = document.createElement('button');
-            regenerateBtn.className = 'text-xs px-2 py-1 rounded border border-neutral-200 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition';
+            regenerateBtn.className = 'text-xs p-1.5 rounded hover:bg-neutral-100 dark:hover:bg-neutral-700 transition';
             regenerateBtn.setAttribute('aria-label', 'Regenerate message');
             regenerateBtn.title = 'Regenerate message';
-            regenerateBtn.textContent = 'Regenerate';
+            regenerateBtn.innerHTML = '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>';
             regenerateBtn.addEventListener('click', function() {
-                window.dispatchEvent(new CustomEvent('ui:regenerate', { detail: { id: message.id } }));
+                window.dispatchEvent(new CustomEvent('request-regenerate', {
+                    detail: {
+                        messageId: message.id,
+                        threadId: window.currentThreadId,
+                        sessionId: window.sessionId
+                    }
+                }));
             });
             
-            // Delete button
-            const deleteBtn = document.createElement('button');
-            deleteBtn.className = 'text-xs px-2 py-1 rounded border border-neutral-200 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition';
-            deleteBtn.setAttribute('aria-label', 'Delete message');
-            deleteBtn.title = 'Delete message';
-            deleteBtn.textContent = 'Delete';
-            deleteBtn.addEventListener('click', function() {
-                deleteMessage(message.id);
-                window.dispatchEvent(new CustomEvent('ui:delete-message', { detail: { id: message.id } }));
-            });
-            
-            toolbar.appendChild(copyBtn);
             toolbar.appendChild(regenerateBtn);
-            toolbar.appendChild(deleteBtn);
-            
-            messageElement.appendChild(toolbar);
         }
+        
+        // Delete button
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'text-xs p-1.5 rounded hover:bg-neutral-100 dark:hover:bg-neutral-700 transition';
+        deleteBtn.setAttribute('aria-label', 'Delete message');
+        deleteBtn.title = 'Delete message';
+        deleteBtn.innerHTML = '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>';
+        deleteBtn.addEventListener('click', function() {
+            deleteMessage(message.id);
+            // Check if db.js has a delete function
+            if (window.DB && typeof window.DB.deleteMessage === 'function') {
+                window.DB.deleteMessage(message.id);
+            }
+            // Otherwise, just dispatch event for later handling
+            window.dispatchEvent(new CustomEvent('ui:delete-message', { detail: { id: message.id } }));
+        });
+        
+        toolbar.appendChild(deleteBtn);
+        messageElement.appendChild(toolbar);
         
         // Handle code copy buttons (need to attach after element is created)
         setTimeout(() => {
             const copyButtons = messageElement.querySelectorAll('.code-copy-btn');
             copyButtons.forEach(btn => {
                 btn.setAttribute('aria-label', 'Copy code block');
-                btn.addEventListener('click', function() {
+                btn.addEventListener('click', async function() {
                     const codeElement = this.closest('.flex').nextElementSibling.querySelector('code');
                     if (codeElement) {
-                        copyToClipboard(codeElement.textContent);
+                        const success = await copyToClipboard(codeElement.textContent);
+                        if (success && window.ToastUtil) {
+                            window.ToastUtil.show('Code copied to clipboard', 'success', 2000);
+                        }
                     }
                 });
             });
             
             // Set aria-hidden on language badges
-            const langBadges = messageElement.querySelectorAll('.text-[11px].px-2.py-0.5.rounded');
+            const langBadges = messageElement.querySelectorAll('.text-\[11px\].px-2.py-0\.5.rounded');
             langBadges.forEach(badge => {
                 badge.setAttribute('aria-hidden', 'true');
             });
@@ -369,11 +400,19 @@ window.Messages = (function() {
                 welcomeMessage.remove();
             }
             
+            // Hide empty prompts grid if it exists
+            if (window.Errors && typeof window.Errors.hideEmptyPrompts === 'function') {
+                window.Errors.hideEmptyPrompts();
+            }
+            
             const messageElement = renderMessage(message);
             chatLog.appendChild(messageElement);
             
             // Scroll to bottom
             chatLog.parentElement.scrollTop = chatLog.parentElement.scrollHeight;
+            
+            // Dispatch event for new message
+            window.dispatchEvent(new CustomEvent('ui:new-message'));
         }
     }
 
@@ -384,8 +423,16 @@ window.Messages = (function() {
             // Find the bubble element (first child)
             const bubbleElement = messageElement.firstElementChild;
             if (bubbleElement) {
+                // Save any existing metadata elements before updating content
+                const existingMetadata = bubbleElement.querySelector('.token-latency');
+                
                 // Update content
                 bubbleElement.innerHTML = parseMarkdown(newContent);
+                
+                // Reattach any existing metadata if present
+                if (existingMetadata) {
+                    bubbleElement.appendChild(existingMetadata);
+                }
                 
                 // Re-highlight syntax
                 if (typeof Prism !== 'undefined') {
@@ -397,10 +444,13 @@ window.Messages = (function() {
                 // Reattach code copy button listeners
                 const copyButtons = bubbleElement.querySelectorAll('.code-copy-btn');
                 copyButtons.forEach(btn => {
-                    btn.addEventListener('click', function() {
+                    btn.addEventListener('click', async function() {
                         const codeElement = this.closest('.flex').nextElementSibling.querySelector('code');
                         if (codeElement) {
-                            copyToClipboard(codeElement.textContent);
+                            const success = await copyToClipboard(codeElement.textContent);
+                            if (success && window.ToastUtil) {
+                                window.ToastUtil.show('Code copied to clipboard', 'success', 2000);
+                            }
                         }
                     });
                 });
@@ -423,7 +473,7 @@ window.Messages = (function() {
             appendMessage({
                 id: `demo-user-${i}`,
                 role: 'user',
-                content: `This is a demo user message ${i+1}.`,
+                content: `This is a demo user message ${i + 1}.`,
                 timestamp: Date.now() - (count - i) * 60000
             });
             
@@ -431,7 +481,7 @@ window.Messages = (function() {
             appendMessage({
                 id: `demo-assistant-${i}`,
                 role: 'assistant',
-                content: `This is a demo assistant response ${i+1}. Here's some code:\n\n```javascript\nfunction helloWorld() {\n  console.log('Hello, world!');\n}\n```\n\nAnd here's a [link](https://example.com) for more information.`,
+                content: `This is a demo assistant response ${i + 1}. Here's some code:\n\n\`\`\`javascript\nfunction helloWorld() {\n  console.log('Hello, world!');\n}\n\`\`\`\n\nAnd here's a [link](https://example.com) for more information.`,
                 timestamp: Date.now() - (count - i) * 60000 + 2000
             });
         }
@@ -536,10 +586,17 @@ window.Messages = (function() {
         messageWindowStart = Math.max(0, messagesStore.length - MAX_VISIBLE_MESSAGES);
         messageWindowEnd = messagesStore.length;
         renderMessageWindow();
+        
+        // If messages exist, hide empty prompts
+        if (messagesArray.length > 0) {
+            if (window.Errors && typeof window.Errors.hideEmptyPrompts === 'function') {
+                window.Errors.hideEmptyPrompts();
+            }
+        }
     }
 
     // Enhanced appendMessage to work with virtualization
-    function appendMessage(message) {
+    function appendVirtualMessage(message) {
         // Add to store
         messagesStore.push(message);
         
@@ -560,6 +617,9 @@ window.Messages = (function() {
             
             // Scroll to bottom
             chatLog.parentElement.scrollTop = chatLog.parentElement.scrollHeight;
+            
+            // Dispatch event for new message
+            window.dispatchEvent(new CustomEvent('ui:new-message'));
         } else {
             // If not at the end, just update the store and re-render the window
             renderMessageWindow();
@@ -567,7 +627,7 @@ window.Messages = (function() {
     }
 
     // Enhanced updateMessageContent to work with virtualization
-    function updateMessageContent(id, newContent) {
+    function updateVirtualMessageContent(id, newContent) {
         // Update in store
         const messageIndex = messagesStore.findIndex(msg => msg.id === id);
         if (messageIndex !== -1) {
@@ -580,8 +640,16 @@ window.Messages = (function() {
                     // Find the bubble element (first child)
                     const bubbleElement = messageElement.firstElementChild;
                     if (bubbleElement) {
+                        // Save any existing metadata elements before updating content
+                        const existingMetadata = bubbleElement.querySelector('.token-latency');
+                        
                         // Update content
                         bubbleElement.innerHTML = parseMarkdown(newContent);
+                        
+                        // Reattach any existing metadata if present
+                        if (existingMetadata) {
+                            bubbleElement.appendChild(existingMetadata);
+                        }
                         
                         // Re-highlight syntax if needed
                         const codeBlocks = bubbleElement.querySelectorAll('pre code');
@@ -603,10 +671,13 @@ window.Messages = (function() {
                         // Reattach code copy button listeners
                         const copyButtons = bubbleElement.querySelectorAll('.code-copy-btn');
                         copyButtons.forEach(btn => {
-                            btn.addEventListener('click', function() {
+                            btn.addEventListener('click', async function() {
                                 const codeElement = this.closest('.flex').nextElementSibling.querySelector('code');
                                 if (codeElement) {
-                                    copyToClipboard(codeElement.textContent);
+                                    const success = await copyToClipboard(codeElement.textContent);
+                                    if (success && window.ToastUtil) {
+                                        window.ToastUtil.show('Code copied to clipboard', 'success', 2000);
+                                    }
                                 }
                             });
                         });
@@ -617,7 +688,7 @@ window.Messages = (function() {
     }
 
     // Enhanced deleteMessage to work with virtualization
-    function deleteMessage(id) {
+    function deleteVirtualMessage(id) {
         // Remove from store
         const originalLength = messagesStore.length;
         messagesStore = messagesStore.filter(msg => msg.id !== id);
@@ -639,14 +710,13 @@ window.Messages = (function() {
     // Expose functions
     return {
         renderMessage: renderMessage,
-        appendMessage: appendMessage,
-        updateMessageContent: updateMessageContent,
-        deleteMessage: deleteMessage,
+        appendMessage: appendVirtualMessage,
+        updateMessageContent: updateVirtualMessageContent,
+        deleteMessage: deleteVirtualMessage,
         demoSeed: demoSeed,
         // Virtualization functions
         setThreadMessages: setThreadMessages,
         // Expose internal parser for external use
         parseMarkdown: parseMarkdown
     };
-};
 })();

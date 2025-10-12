@@ -68,6 +68,18 @@ window.Streaming = (function() {
                     }
                 }, 0);
             });
+            
+            // Add scroll listener to enable scroll-lock when user scrolls up
+            chatLog.parentElement.addEventListener('scroll', function() {
+                // Check if user has scrolled up from the bottom
+                const isNearBottom = chatLog.parentElement.scrollHeight - chatLog.parentElement.scrollTop <= chatLog.parentElement.clientHeight + 80;
+                if (!isNearBottom) {
+                    autoScrollEnabled = false;
+                } else if (!autoScrollEnabled) {
+                    // If user scrolled back to bottom, re-enable auto-scroll
+                    autoScrollEnabled = true;
+                }
+            });
         }
     }
     
@@ -118,6 +130,13 @@ window.Streaming = (function() {
             stopBtn.classList.remove('hidden');
             composerInput.disabled = true;
             
+            // Announce streaming start to screen readers
+            this.announceToScreenReader('Streaming started. Assistant is responding.');
+            
+            // Start tracking streaming metrics
+            const startTime = Date.now();
+            let tokenCount = 0;
+            
             // Prepare request payload
             const requestBody = {
                 sessionId: typeof window.sessionId !== 'undefined' ? window.sessionId : null,
@@ -154,26 +173,31 @@ window.Streaming = (function() {
                 
                 try {
                     while (true) {
-                        const { done, value } = await reader.read();
-                        
+                        const {
+                            done,
+                            value
+                        } = await reader.read();
+
                         if (done) {
                             break;
                         }
-                        
+
                         // Decode the chunk
-                        buffer += decoder.decode(value, { stream: true });
-                        
+                        buffer += decoder.decode(value, {
+                            stream: true
+                        });
+
                         // Process the buffer for complete chunks
                         const lines = buffer.split('\n');
                         buffer = lines.pop() || ''; // Keep incomplete line in buffer
-                        
+
                         for (const line of lines) {
                             if (line.trim()) {
                                 // Schedule update with rAF throttling
                                 if (pendingUpdate) {
                                     cancelAnimationFrame(pendingUpdate);
                                 }
-                                
+
                                 pendingUpdate = requestAnimationFrame(() => {
                                     // Get current content and append new text
                                     const currentMessage = document.querySelector(`[data-id="${messageId}"]`);
@@ -182,14 +206,15 @@ window.Streaming = (function() {
                                         if (bubbleElement) {
                                             // Update content via messages API
                                             const currentContent = bubbleElement.textContent || bubbleElement.innerText || '';
-                                            window.Messages.updateMessageContent(messageId, currentContent + line);
-                                            
-                                            // Auto-scroll if enabled and user is near bottom
+                                            const newContent = currentContent + line;
+                                            window.Messages.updateMessageContent(messageId, newContent);
+
+                                            // Update token count (count words as tokens for now)
+                                            tokenCount = newContent.trim().split(/\s+/).length;
+
+                                            // Auto-scroll if enabled
                                             if (autoScrollEnabled) {
-                                                const isNearBottom = chatLog.parentElement.scrollHeight - chatLog.parentElement.scrollTop <= chatLog.parentElement.clientHeight + 80;
-                                                if (isNearBottom) {
-                                                    chatLog.parentElement.scrollTop = chatLog.parentElement.scrollHeight;
-                                                }
+                                                chatLog.parentElement.scrollTop = chatLog.parentElement.scrollHeight;
                                             }
                                         }
                                     }
@@ -197,31 +222,43 @@ window.Streaming = (function() {
                             }
                         }
                     }
-                    
+
                     // Process any remaining buffer
                     if (buffer) {
                         if (pendingUpdate) {
                             cancelAnimationFrame(pendingUpdate);
                         }
-                        
+
                         pendingUpdate = requestAnimationFrame(() => {
                             const currentMessage = document.querySelector(`[data-id="${messageId}"]`);
                             if (currentMessage) {
                                 const bubbleElement = currentMessage.firstElementChild;
                                 if (bubbleElement) {
                                     const currentContent = bubbleElement.textContent || bubbleElement.innerText || '';
-                                    window.Messages.updateMessageContent(messageId, currentContent + buffer);
+                                    const newContent = currentContent + buffer;
+                                    window.Messages.updateMessageContent(messageId, newContent);
+
+                                    // Update token count (count words as tokens for now)
+                                    tokenCount = newContent.trim().split(/\s+/).length;
+
+                                    // Auto-scroll if enabled
+                                    if (autoScrollEnabled) {
+                                        chatLog.parentElement.scrollTop = chatLog.parentElement.scrollHeight;
+                                    }
                                 }
                             }
                         });
                     }
+                } catch (error) {
+                    // Handle any errors during streaming
+                    console.error('Error during streaming:', error);
                 } finally {
                     if (pendingUpdate) {
                         cancelAnimationFrame(pendingUpdate);
                     }
                     reader.releaseLock();
                 }
-            } else {
+        } else {
                 // Handle JSON response (non-streaming fallback)
                 result = await response.json();
                 
@@ -302,8 +339,12 @@ window.Streaming = (function() {
                 window.dispatchEvent(new CustomEvent('ui:provider-error', { detail: { error: error.message } }));
             }
         } finally {
+            // Calculate final metrics
+            const endTime = Date.now();
+            const latency = ((endTime - startTime) / 1000).toFixed(1); // in seconds
+            
             // Complete the streaming process
-            completeStreaming();
+            completeStreaming(tokenCount, latency);
         }
     }
     
@@ -315,7 +356,7 @@ window.Streaming = (function() {
     }
     
     // Complete the streaming process and update UI
-    function completeStreaming() {
+    function completeStreaming(tokenCount, latency) {
         isStreaming = false;
         
         // Update UI state to idle
@@ -329,6 +370,17 @@ window.Streaming = (function() {
             const bubbleElement = activeAssistantMessage.firstElementChild;
             if (bubbleElement) {
                 bubbleElement.setAttribute('aria-busy', 'false');
+                
+                // Add token/latency metadata to the assistant message
+                if (tokenCount !== undefined && latency !== undefined) {
+                    const metadataDiv = document.createElement('div');
+                    metadataDiv.className = 'token-latency';
+                    metadataDiv.textContent = `${tokenCount} tokens / ${latency}s`;
+                    metadataDiv.setAttribute('aria-label', `${tokenCount} tokens generated in ${latency} seconds`);
+                    
+                    // Add the metadata to the message bubble
+                    bubbleElement.appendChild(metadataDiv);
+                }
             }
         }
         
@@ -336,12 +388,39 @@ window.Streaming = (function() {
         if (chatLog) {
             chatLog.setAttribute('aria-busy', 'false');
         }
+        
+        // Update the composer thinking indicator to show completion
+        if (composerThinking) {
+            // Change the thinking indicator to show completion
+            composerThinking.innerHTML = '<span class="inline-flex h-2 w-2 rounded-full bg-green-500"></span> Response complete';
+            setTimeout(() => {
+                // Restore original thinking indicator text after a brief delay
+                composerThinking.innerHTML = '<span class="inline-flex h-2 w-2 rounded-full bg-indigo-500 animate-pulse"></span> Thinking…';
+            }, 1000);
+        }
+        
+        // Announce streaming completion to screen readers
+        this.announceToScreenReader('Streaming completed. Assistant response finished.');
+    }
+    
+    // Function to announce messages to screen readers
+    function announceToScreenReader(message) {
+        const announcementElement = document.getElementById('screen-reader-announcements');
+        if (announcementElement) {
+            // Clear previous announcement and add new one
+            announcementElement.textContent = '';
+            // Add a small delay to ensure screen readers pick up the change
+            setTimeout(() => {
+                announcementElement.textContent = message;
+            }, 100);
+        }
     }
     
     // Public API
     return {
         init: init,
         start: start,
-        cancel: cancel
+        cancel: cancel,
+        announceToScreenReader: announceToScreenReader
     };
 })();

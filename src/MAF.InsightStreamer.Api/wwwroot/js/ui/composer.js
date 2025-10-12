@@ -11,13 +11,21 @@ window.Composer = (function() {
     let composerInput, composerFileInput, attachmentPills, slashMenu, stopBtn;
     let quickChips, modeToggles, attachFilesBtn;
     
+    // Configuration
+    const config = {
+        maxLines: 8,
+        sendOnEnter: true, // User-configurable option
+        enterToSend: true // true = Enter sends, false = Enter creates new line
+    };
+    
     // Slash command state
     let slashCommands = [
         { name: 'summarize', description: 'Summarize the content' },
         { name: 'fix-grammar', description: 'Fix grammar and spelling' },
         { name: 'make-concise', description: 'Make content more concise' },
         { name: 'explain', description: 'Explain in simple terms' },
-        { name: 'translate', description: 'Translate to another language' }
+        { name: 'translate', description: 'Translate to another language' },
+        { name: 'help', description: 'Show available commands' }
     ];
     
     let activeCommandIndex = -1;
@@ -37,6 +45,9 @@ window.Composer = (function() {
         modeToggles = document.querySelectorAll('.mode-toggle');
         attachFilesBtn = document.getElementById('attachFilesBtn');
         
+        // Load user preferences
+        loadUserPreferences();
+        
         // Set up event listeners
         setupEventListeners();
         
@@ -47,12 +58,26 @@ window.Composer = (function() {
         updateModeDisplay('default');
     }
     
+    function loadUserPreferences() {
+        // Load user-configurable options from localStorage
+        const savedSendOnEnter = localStorage.getItem('composer.sendOnEnter');
+        if (savedSendOnEnter !== null) {
+            config.sendOnEnter = JSON.parse(savedSendOnEnter);
+        }
+    }
+    
+    function saveUserPreferences() {
+        // Save user-configurable options to localStorage
+        localStorage.setItem('composer.sendOnEnter', JSON.stringify(config.sendOnEnter));
+    }
+    
     function setupEventListeners() {
         // Quick chips click handlers
         quickChips.forEach(chip => {
             chip.addEventListener('click', function() {
                 const chipText = this.getAttribute('data-chip');
                 prefillComposer(chipText);
+                composerInput.focus();
             });
         });
         
@@ -74,21 +99,29 @@ window.Composer = (function() {
         });
         
         // Drag and drop handlers for the composer container
-        const composerContainer = composerInput.parentElement;
-        composerContainer.addEventListener('dragover', function(e) {
-            e.preventDefault();
-            this.classList.add('ring-2', 'ring-indigo-500');
-        });
-        
-        composerContainer.addEventListener('dragleave', function() {
-            this.classList.remove('ring-2', 'ring-indigo-500');
-        });
-        
-        composerContainer.addEventListener('drop', function(e) {
-            e.preventDefault();
-            this.classList.remove('ring-2', 'ring-indigo-500');
-            handleFileSelection(e.dataTransfer.files);
-        });
+        const composerContainer = composerInput.closest('[class*="sticky"]'); // Find the parent sticky container
+        if (composerContainer) {
+            composerContainer.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                this.classList.add('ring-2');
+                this.classList.add('ring-indigo-500');
+                this.classList.add('border-indigo-500');
+            });
+            
+            composerContainer.addEventListener('dragleave', function() {
+                this.classList.remove('ring-2');
+                this.classList.remove('ring-indigo-500');
+                this.classList.remove('border-indigo-500');
+            });
+            
+            composerContainer.addEventListener('drop', function(e) {
+                e.preventDefault();
+                this.classList.remove('ring-2');
+                this.classList.remove('ring-indigo-500');
+                this.classList.remove('border-indigo-500');
+                handleFileSelection(e.dataTransfer.files);
+            });
+        }
         
         // Key handlers for composer input
         composerInput.addEventListener('keydown', handleKeyDown);
@@ -117,23 +150,28 @@ window.Composer = (function() {
     
     function setupAutoResize() {
         // Calculate line height for the textarea
-        const lineHeight = parseInt(window.getComputedStyle(composerInput).lineHeight);
-        const maxLines = 8;
-        const maxHeight = lineHeight * maxLines;
+        const lineHeight = parseInt(window.getComputedStyle(composerInput).lineHeight) || 20;
+        const paddingTop = parseInt(window.getComputedStyle(composerInput).paddingTop) || 8;
+        const paddingBottom = parseInt(window.getComputedStyle(composerInput).paddingBottom) || 8;
+        const verticalPadding = paddingTop + paddingBottom;
+        const maxLines = config.maxLines;
+        const maxHeight = (lineHeight * maxLines) + verticalPadding;
+        
+        // Initial height
+        composerInput.style.height = (lineHeight + verticalPadding) + 'px';
+        composerInput.style.overflowY = 'hidden';
         
         composerInput.addEventListener('input', function() {
+            // Reset height to auto to calculate the real scroll height
             this.style.height = 'auto';
             
             // Calculate scroll height and clamp to max height
             const newHeight = Math.min(this.scrollHeight, maxHeight);
             this.style.height = newHeight + 'px';
             
-            // Adjust the container height as well to push content up
+            // Adjust the overflow property based on whether content exceeds max height
             this.style.overflowY = this.scrollHeight > maxHeight ? 'scroll' : 'hidden';
         });
-        
-        // Set initial height
-        composerInput.style.height = lineHeight + 'px';
     }
     
     function handleKeyDown(e) {
@@ -142,21 +180,40 @@ window.Composer = (function() {
             return;
         }
         
-        // Check for Cmd/Ctrl+Enter to send message
+        // Check for Cmd/Ctrl+Enter to create new line (opposite of send behavior)
         if ((e.key === 'Enter' && (e.metaKey || e.ctrlKey)) || (e.key === 'Enter' && e.shiftKey)) {
             e.preventDefault();
-            sendIfValid();
+            // Insert a new line at cursor position
+            const start = composerInput.selectionStart;
+            const end = composerInput.selectionEnd;
+            const currentValue = composerInput.value;
+            const newValue = currentValue.substring(0, start) + '\n' + currentValue.substring(end);
+            composerInput.value = newValue;
+            
+            // Set cursor position after the inserted newline
+            composerInput.setSelectionRange(start + 1, start + 1);
+            
+            // Trigger input event to update UI
+            composerInput.dispatchEvent(new Event('input', { bubbles: true }));
             return;
         }
         
-        // Check for Enter to insert newline (default behavior)
+        // Check for Enter to send (if configured)
         if (e.key === 'Enter' && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
-            // Allow default behavior for newline
-            return;
+            if (config.enterToSend) {
+                e.preventDefault();
+                sendIfValid();
+                return;
+            }
         }
         
-        // Check for slash command trigger
-        if (e.key === '/' && composerInput.selectionStart === composerInput.value.length) {
+        // Check for slash command trigger at the beginning of the line or after a space
+        const cursorPos = composerInput.selectionStart;
+        const textBeforeCursor = composerInput.value.substring(0, cursorPos);
+        const isAtBeginning = cursorPos === 0;
+        const previousChar = isAtBeginning ? '' : textBeforeCursor.charAt(cursorPos - 1);
+        
+        if (e.key === '/' && (isAtBeginning || previousChar === ' ' || previousChar === '\n')) {
             showSlashMenu();
         }
     }
@@ -166,15 +223,29 @@ window.Composer = (function() {
             // Check if we're still in slash command mode
             const cursorPos = composerInput.selectionStart;
             const textBeforeCursor = composerInput.value.substring(0, cursorPos);
-            const lastSlashIndex = textBeforeCursor.lastIndexOf('/');
+            const lastSlashIndex = Math.max(
+                textBeforeCursor.lastIndexOf('/'),
+                textBeforeCursor.lastIndexOf(' /'), // Handle after space
+                textBeforeCursor.lastIndexOf('\n/') // Handle after newline
+            );
             
-            if (lastSlashIndex === -1) {
-                hideSlashMenu();
-            } else {
-                // Update slash menu based on typed text after slash
-                const typedText = textBeforeCursor.substring(lastSlashIndex + 1);
-                updateSlashMenu(typedText);
+            if (lastSlashIndex === -1 ||
+                (lastSlashIndex > 0 && textBeforeCursor.charAt(lastSlashIndex - 1) !== ' ' && textBeforeCursor.charAt(lastSlashIndex - 1) !== '\n')) {
+                // Look for the last slash that follows a space or newline
+                const parts = textBeforeCursor.split(/[\s\n]/);
+                const lastPart = parts[parts.length - 1];
+                if (!lastPart.startsWith('/')) {
+                    hideSlashMenu();
+                    return;
+                }
             }
+            
+            // Update slash menu based on typed text after slash
+            let typedText = '';
+            if (lastSlashIndex !== -1) {
+                typedText = textBeforeCursor.substring(lastSlashIndex + 1);
+            }
+            updateSlashMenu(typedText);
         }
     }
     
@@ -219,9 +290,12 @@ window.Composer = (function() {
             if (index === activeCommandIndex) {
                 item.classList.add('bg-indigo-100', 'dark:bg-indigo-900');
                 item.classList.remove('hover:bg-neutral-100', 'dark:hover:bg-neutral-700');
+                // Set aria-selected for accessibility
+                item.setAttribute('aria-selected', 'true');
             } else {
                 item.classList.remove('bg-indigo-100', 'dark:bg-indigo-900');
                 item.classList.add('hover:bg-neutral-100', 'dark:hover:bg-neutral-700');
+                item.setAttribute('aria-selected', 'false');
             }
         });
     }
@@ -250,14 +324,17 @@ window.Composer = (function() {
     }
     
     function updateSlashMenu(filterText) {
-        filteredCommands = slashCommands.filter(cmd => 
-            cmd.name.toLowerCase().includes(filterText.toLowerCase())
+        filteredCommands = slashCommands.filter(cmd =>
+            cmd.name.toLowerCase().includes(filterText.toLowerCase()) ||
+            cmd.description.toLowerCase().includes(filterText.toLowerCase())
         );
         
         renderSlashMenu();
         
         if (filteredCommands.length === 0) {
-            hideSlashMenu();
+            // Show "no results" message
+            const container = slashMenu.querySelector('div');
+            container.innerHTML = '<div class="px-3 py-2 text-sm text-neutral-500 dark:text-neutral-400">No commands found</div>';
         } else {
             slashMenu.classList.remove('hidden');
             slashMenu.classList.add('block');
@@ -274,10 +351,10 @@ window.Composer = (function() {
         filteredCommands.forEach((cmd, index) => {
             const item = document.createElement('div');
             item.id = `slash-cmd-${index}`;
-            item.className = 'flex flex-col px-3 py-2 text-sm cursor-pointer rounded-md';
+            item.className = 'flex flex-col px-3 py-2 text-sm cursor-pointer rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-700';
             item.setAttribute('role', 'menuitem');
             item.setAttribute('tabindex', '-1');
-            item.setAttribute('aria-label', cmd.name);
+            item.setAttribute('aria-label', `${cmd.name}: ${cmd.description}`);
             
             item.innerHTML = `
                 <span class="font-medium text-neutral-900 dark:text-neutral-100">/${cmd.name}</span>
@@ -313,7 +390,12 @@ window.Composer = (function() {
     function insertCommand(command) {
         const cursorPos = composerInput.selectionStart;
         const textBeforeCursor = composerInput.value.substring(0, cursorPos);
-        const lastSlashIndex = textBeforeCursor.lastIndexOf('/');
+        
+        // Find the last slash that we want to replace
+        const lastSpaceIndex = textBeforeCursor.lastIndexOf(' ');
+        const lastNewlineIndex = textBeforeCursor.lastIndexOf('\n');
+        const startSearchIndex = Math.max(lastSpaceIndex, lastNewlineIndex, 0);
+        const lastSlashIndex = textBeforeCursor.indexOf('/', startSearchIndex);
         
         if (lastSlashIndex !== -1) {
             // Replace the slash command with the actual command
@@ -322,6 +404,16 @@ window.Composer = (function() {
             
             // Set cursor position after the inserted command
             const newCursorPos = lastSlashIndex + command.length + 2; // +2 for '/' and ' '
+            composerInput.setSelectionRange(newCursorPos, newCursorPos);
+        } else {
+            // Fallback: just insert the command at the cursor position
+            const start = composerInput.selectionStart;
+            const end = composerInput.selectionEnd;
+            const currentValue = composerInput.value;
+            const newValue = currentValue.substring(0, start) + `/${command} ` + currentValue.substring(end);
+            composerInput.value = newValue;
+            
+            const newCursorPos = start + command.length + 2; // +2 for '/' and ' '
             composerInput.setSelectionRange(newCursorPos, newCursorPos);
         }
         
@@ -448,8 +540,8 @@ window.Composer = (function() {
         updateModeDisplay(mode);
         
         // Dispatch mode change event
-        window.dispatchEvent(new CustomEvent('ui:mode-changed', { 
-            detail: { mode: mode } 
+        window.dispatchEvent(new CustomEvent('ui:mode-changed', {
+            detail: { mode: mode }
         }));
     }
     
@@ -487,6 +579,9 @@ window.Composer = (function() {
                 window.Streaming.start(promptText);
             }
             
+            // Dispatch event for new message being sent
+            window.dispatchEvent(new CustomEvent('ui:new-message'));
+            
             // Clear the composer
             clear();
         }
@@ -504,8 +599,11 @@ window.Composer = (function() {
         composerInput.value = '';
         
         // Reset textarea height
-        const lineHeight = parseInt(window.getComputedStyle(composerInput).lineHeight);
-        composerInput.style.height = lineHeight + 'px';
+        const lineHeight = parseInt(window.getComputedStyle(composerInput).lineHeight) || 20;
+        const paddingTop = parseInt(window.getComputedStyle(composerInput).paddingTop) || 8;
+        const paddingBottom = parseInt(window.getComputedStyle(composerInput).paddingBottom) || 8;
+        const verticalPadding = paddingTop + paddingBottom;
+        composerInput.style.height = (lineHeight + verticalPadding) + 'px';
         composerInput.style.overflowY = 'hidden';
         
         // Clear attachments
@@ -517,7 +615,16 @@ window.Composer = (function() {
     return {
         init: init,
         getState: getState,
-        clear: clear
+        clear: clear,
+        
+        // Additional public methods for configuration
+        setSendOnEnter: function(enabled) {
+            config.enterToSend = enabled;
+            saveUserPreferences();
+        },
+        getSendOnEnter: function() {
+            return config.enterToSend;
+        }
     };
 })();
 

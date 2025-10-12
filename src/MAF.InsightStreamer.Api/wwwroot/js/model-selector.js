@@ -251,7 +251,9 @@ class ModelSelector {
             }
         } catch (error) {
             this.updateStatus('Provider unavailable', 'unavailable');
-            ToastUtil.show(`Failed to load providers: ${error.message}`, 'error');
+            if (window.ToastUtil) {
+                window.ToastUtil.show(`Failed to load providers: ${error.message}`, 'error');
+            }
         }
     }
 
@@ -282,7 +284,9 @@ class ModelSelector {
                         this.renderModelDropdown([]);
                         document.getElementById('modelSelect').disabled = false;
                         this.updateStatus('Connected', 'connected');
-                        ToastUtil.show('OpenRouter models cannot be discovered locally. Please enter a model name.', 'info');
+                        if (window.ToastUtil) {
+                            window.ToastUtil.show('OpenRouter models cannot be discovered locally. Please enter a model name.', 'info');
+                        }
                     } else {
                         throw new Error(errorText);
                     }
@@ -314,11 +318,25 @@ class ModelSelector {
         } catch (error) {
             this.updateStatus('Provider unavailable', 'unavailable');
             document.getElementById('modelSelect').disabled = true;
-            ToastUtil.show(`Cannot discover models: ${error.message}`, 'error');
+            if (window.ToastUtil) {
+                window.ToastUtil.show(`Cannot discover models: ${error.message}`, 'error');
+            }
         }
     }
 
     async switchModel(provider, model) {
+        // Store previous model for potential revert
+        const previousModel = this.currentModel;
+        
+        // Optimistic UI update: immediately update UI to show new selection
+        const modelSelect = document.getElementById('modelSelect');
+        if (modelSelect) {
+            modelSelect.value = model;
+        }
+        
+        // Update status dot to show pending state
+        this.updateModelStatus('loading');
+        
         try {
             const response = await fetch('/api/model/switch', {
                 method: 'POST',
@@ -330,37 +348,64 @@ class ModelSelector {
                 this.currentProvider = provider;
                 this.currentModel = model;
                 this.updateStatus('Connected', 'connected');
-                ToastUtil.show(`Switched to ${model}`, 'success');
+                this.updateModelStatus('available');
+                if (window.ToastUtil) {
+                    window.ToastUtil.show(`Model switched to ${model}`, 'success');
+                }
+                
+                // Announce model switch to screen readers
+                this.announceToScreenReader(`Model successfully switched to ${model}`);
                 
                 // Save the selected model in localStorage
                 localStorage.setItem('is:model', model);
             } else {
                 const errorText = await response.text();
+                
+                // Revert the UI to the previous model selection
+                if (previousModel) {
+                    modelSelect.value = previousModel;
+                }
+                
                 this.updateStatus('Provider unavailable', 'unavailable');
-                ToastUtil.show(`Failed to switch model: ${errorText}`, 'error');
+                this.updateModelStatus('error');
+                if (window.ToastUtil) {
+                    window.ToastUtil.show(`Failed to switch model: ${errorText}`, 'error');
+                }
             }
         } catch (error) {
+            // Revert the UI to the previous model selection
+            if (previousModel) {
+                modelSelect.value = previousModel;
+            }
+            
             this.updateStatus('Provider unavailable', 'unavailable');
-            ToastUtil.show(`Error switching model: ${error.message}`, 'error');
+            this.updateModelStatus('error');
+            if (window.ToastUtil) {
+                window.ToastUtil.show(`Error switching model: ${error.message}`, 'error');
+            }
         }
     }
 
     renderProviderDropdown(providers) {
         const select = document.getElementById('providerSelect');
-        select.innerHTML = providers
-            .map(p => `<option value="${p.value}">${p.name}</option>`)
-            .join('');
+        if (select) {
+            select.innerHTML = providers
+                .map(p => `<option value="${p.value}">${p.name}</option>`)
+                .join('');
+        }
     }
 
     renderModelDropdown(models) {
         const select = document.getElementById('modelSelect');
-        if (models && models.length > 0) {
-            select.innerHTML = models
-                .map(m => `<option value="${m.id}">${m.name || m.id} ${m.sizeBytes ? `(${this.formatSize(m.sizeBytes)})` : ''}</option>`)
-                .join('');
-        } else {
-            // For providers like OpenRouter where we can't discover models, allow manual entry
-            select.innerHTML = `<option value="">Enter model name</option>`;
+        if (select) {
+            if (models && models.length > 0) {
+                select.innerHTML = models
+                    .map(m => `<option value="${m.id}">${m.name || m.id} ${m.sizeBytes ? `(${this.formatSize(m.sizeBytes)})` : ''}</option>`)
+                    .join('');
+            } else {
+                // For providers like OpenRouter where we can't discover models, allow manual entry
+                select.innerHTML = `<option value="">Enter model name</option>`;
+            }
         }
     }
 
@@ -375,11 +420,13 @@ class ModelSelector {
         const statusText = document.getElementById('statusText');
         const statusDotTitle = document.getElementById('statusDot');
 
-        // Reset classes
-        statusDot.className = 'w-3 h-3 rounded-full';
-        statusText.className = 'text-xs text-gray-500 dark:text-gray-400';
-        statusDotTitle.title = text;
-        statusText.textContent = text;
+        if (statusDot && statusText && statusDotTitle) {
+            // Reset classes
+            statusDot.className = 'w-3 h-3 rounded-full';
+            statusText.className = 'text-xs text-gray-500 dark:text-gray-400';
+            statusDotTitle.title = text;
+            statusText.textContent = text;
+        }
 
         // Apply status-specific classes
         switch (statusType) {
@@ -410,6 +457,39 @@ class ModelSelector {
         }
     }
 
+    // Update model status dot
+    updateModelStatus(statusType) {
+        const modelStatusDot = document.getElementById('modelStatusDot');
+        if (!modelStatusDot) return;
+        
+        // Reset classes
+        modelStatusDot.className = 'ml-2 w-3 h-3 rounded-full';
+        modelStatusDot.setAttribute('data-status', statusType);
+        
+        // Apply status-specific classes
+        switch (statusType) {
+            case 'available':
+                modelStatusDot.classList.add('bg-emerald-500');
+                modelStatusDot.title = 'Model available';
+                break;
+            case 'error':
+                modelStatusDot.classList.add('bg-rose-500');
+                modelStatusDot.title = 'Model error';
+                break;
+            case 'loading':
+                modelStatusDot.classList.add('bg-amber-500');
+                modelStatusDot.title = 'Model switching...';
+                break;
+            case 'pending':
+                modelStatusDot.classList.add('bg-slate-400');
+                modelStatusDot.title = 'Model pending';
+                break;
+            default:
+                modelStatusDot.classList.add('bg-slate-400');
+                modelStatusDot.title = 'Model status unknown';
+        }
+    }
+
     setupEventListeners() {
         const providerSelect = document.getElementById('providerSelect');
         const modelSelect = document.getElementById('modelSelect');
@@ -437,6 +517,9 @@ class ModelSelector {
         if (providerSelect.value) {
             this.discoverModels(providerSelect.value);
         }
+        
+        // Initialize model status dot with default state
+        this.updateModelStatus('pending');
     }
 
     showLoading() {
@@ -485,7 +568,22 @@ class ModelSelector {
             }, 3000);
         }
     }
+    
+    // Function to announce messages to screen readers
+    announceToScreenReader(message) {
+        const announcementElement = document.getElementById('screen-reader-announcements');
+        if (announcementElement) {
+            // Clear previous announcement and add new one
+            announcementElement.textContent = '';
+            // Add a small delay to ensure screen readers pick up the change
+            setTimeout(() => {
+                announcementElement.textContent = message;
+            }, 100);
+        }
+    }
 }
 
 // Initialize
-const modelSelector = new ModelSelector();
+document.addEventListener('DOMContentLoaded', () => {
+    const modelSelector = new ModelSelector();
+});

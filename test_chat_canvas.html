@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Chat Canvas</title>
+    <link rel="stylesheet" href="/styling/tokens.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/js/ui/toast.js"></script>
+</head>
+<body class="min-h-screen bg-neutral-50 dark:bg-neutral-950">
+    <div class="max-w-[1024px] mx-auto px-[var(--gutter-x)] py-6">
+        <section id="chatLog" role="log" aria-live="polite" tabindex="-1" class="space-y-4">
+            <div class="group relative">
+                <!-- Assistant message -->
+                <div class="flex justify-start">
+                    <div class="surface rounded-[var(--radius-lg)] text-base max-w-[75ch] relative group py-[var(--bubble-py)] px-[var(--bubble-px)] border hairline">
+                        <p>This is an assistant message with some code:</p>
+                        <div class="flex items-center justify-between mb-0 hairline border-b surface-alt rounded-t-[var(--radius-lg)]">
+                            <span class="text-[11px] px-2 py-1 rounded">javascript</span>
+                            <button class="code-copy-btn text-[11px] px-2 py-1 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 transition" aria-label="Copy code block">Copy</button>
+                        </div>
+                        <pre class="bg-neutral-50 dark:bg-neutral-900 border border-t-0 border-neutral-200 dark:border-neutral-800 rounded-b-[var(--radius-lg)] overflow-auto"><code class="language-javascript">function hello() {
+    console.log("Hello, world!");
+}</code></pre>
+                    </div>
+                </div>
+                <time class="absolute right-0 -top-5 text-xs text-neutral-500 dark:text-neutral-400 opacity-0 group-hover:opacity-100 transition-opacity" title="2023-10-12 17:05:00" aria-hidden="true">10/12/2023, 5:05:00 PM</time>
+                <div class="absolute top-0 right-0 mt-2 mr-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-md shadow-sm p-1">
+                    <button class="text-xs p-1.5 rounded hover:bg-neutral-100 dark:hover:bg-neutral-700 transition" aria-label="Copy message" title="Copy message">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                    </button>
+                    <button class="text-xs p-1.5 rounded hover:bg-neutral-100 dark:hover:bg-neutral-700 transition" aria-label="Regenerate message" title="Regenerate message">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                    </button>
+                    <button class="text-xs p-1.5 rounded hover:bg-neutral-100 dark:hover:bg-neutral-700 transition" aria-label="Delete message" title="Delete message">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="group relative">
+                <!-- User message -->
+                <div class="flex justify-end">
+                    <div class="surface-alt rounded-[var(--radius-lg)] text-base max-w-[75ch] bg-indigo-600 text-white py-[var(--bubble-py)] px-[var(--bubble-px)] border hairline">
+                        <p>This is a user message</p>
+                    </div>
+                </div>
+                <time class="absolute right-0 -top-5 text-xs text-neutral-500 dark:text-neutral-400 opacity-0 group-hover:opacity-100 transition-opacity" title="2023-10-12 17:05:30" aria-hidden="true">10/12/2023, 5:05:30 PM</time>
+                <div class="absolute top-0 right-0 mt-2 mr-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-md shadow-sm p-1">
+                    <button class="text-xs p-1.5 rounded hover:bg-neutral-100 dark:hover:bg-neutral-700 transition" aria-label="Copy message" title="Copy message">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                    </button>
+                    <button class="text-xs p-1.5 rounded hover:bg-neutral-100 dark:hover:bg-neutral-700 transition" aria-label="Delete message" title="Delete message">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    </button>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        // Test copy functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const copyButtons = document.querySelectorAll('.code-copy-btn');
+            copyButtons.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    console.log('Code copy button clicked');
+                    if (window.ToastUtil) {
+                        window.ToastUtil.show('Code copied to clipboard', 'success', 2000);
+                    }
+                });
+            });
+            
+            // Test message copy functionality
+            const msgCopyButtons = document.querySelectorAll('[aria-label="Copy message"]');
+            msgCopyButtons.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    console.log('Message copy button clicked');
+                    if (window.ToastUtil) {
+                        window.ToastUtil.show('Message copied to clipboard', 'success', 2000);
+                    }
+                });
+            });
+            
+            // Test regenerate functionality
+            const regenerateButtons = document.querySelectorAll('[aria-label="Regenerate message"]');
+            regenerateButtons.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    console.log('Regenerate button clicked');
+                    window.dispatchEvent(new CustomEvent('request-regenerate', { 
+                        detail: { 
+                            messageId: 'test-id',
+                            threadId: 'test-thread',
+                            sessionId: 'test-session'
+                        } 
+                    }));
+                });
+            });
+            
+            // Test delete functionality
+            const deleteButtons = document.querySelectorAll('[aria-label="Delete message"]');
+            deleteButtons.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    console.log('Delete button clicked');
+                    window.dispatchEvent(new CustomEvent('ui:delete-message', { 
+                        detail: { id: 'test-id' } 
+                    }));
+                });
+            });
+        });
+    </script>
+</body>
+</html>

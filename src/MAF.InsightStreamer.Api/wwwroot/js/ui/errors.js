@@ -97,6 +97,14 @@ window.Errors = (function() {
             retryBtn.style.display = 'none';
         }
 
+        // Set up switch provider button
+        if (switchBtn) {
+            switchBtn.onclick = function() {
+                // Dispatch event to switch provider
+                window.dispatchEvent(new CustomEvent('ui:switch-provider'));
+            };
+        }
+
         // Show banner
         banner.classList.remove('hidden');
         
@@ -277,6 +285,53 @@ window.Errors = (function() {
         window.addEventListener('ui:model-discovery-failed', handleModelDiscoveryFailed);
     });
 
+    // Function to show empty prompts grid
+    function showEmptyPrompts() {
+        const welcomeMessage = document.getElementById('welcomeMessage');
+        const emptyPromptsGrid = document.getElementById('emptyPromptsGrid');
+        const chatLog = document.getElementById('chatLog');
+        
+        if (chatLog && chatLog.children.length <= 1) { // Only if there are no messages or just the welcome message
+            if (welcomeMessage) {
+                welcomeMessage.classList.add('hidden');
+            }
+            if (emptyPromptsGrid) {
+                emptyPromptsGrid.classList.remove('hidden');
+            }
+        }
+    }
+
+    // Function to hide empty prompts grid
+    function hideEmptyPrompts() {
+        const welcomeMessage = document.getElementById('welcomeMessage');
+        const emptyPromptsGrid = document.getElementById('emptyPromptsGrid');
+        
+        if (welcomeMessage) {
+            welcomeMessage.classList.remove('hidden');
+        }
+        if (emptyPromptsGrid) {
+            emptyPromptsGrid.classList.add('hidden');
+        }
+    }
+
+    // Function to setup empty prompts click handlers
+    function setupEmptyPromptsHandlers() {
+        const promptsGrid = document.getElementById('emptyPromptsGrid');
+        if (!promptsGrid) return;
+        
+        const promptElements = promptsGrid.querySelectorAll('[data-prompt]');
+        promptElements.forEach(element => {
+            element.addEventListener('click', function() {
+                const prompt = this.getAttribute('data-prompt');
+                const composerInput = document.getElementById('composerInput');
+                if (composerInput) {
+                    composerInput.value = prompt;
+                    composerInput.focus();
+                }
+            });
+        });
+    }
+
     // Helper function to handle overlay click (defined here for use in hideDiagnostics)
     function handleOverlayClick(e) {
         const overlay = document.getElementById('diagnosticsOverlay');
@@ -292,11 +347,40 @@ window.Errors = (function() {
         }
     }
 
+    // Set up empty prompts when DOM is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        window.addEventListener('ui:provider-error', handleProviderError);
+        window.addEventListener('ui:provider-rate-limited', handleProviderRateLimited);
+        window.addEventListener('ui:provider-recovered', handleProviderRecovered);
+        window.addEventListener('ui:model-discovery-failed', handleModelDiscoveryFailed);
+        
+        // Setup empty prompts handlers
+        setupEmptyPromptsHandlers();
+        
+        // Show empty prompts if there are no messages
+        setTimeout(() => {
+            const chatLog = document.getElementById('chatLog');
+            if (chatLog && chatLog.children.length <= 1) { // Only if there are no messages or just the welcome message
+                showEmptyPrompts();
+            }
+        }, 100);
+    });
+
+    // Listen for new message events to hide empty prompts
+    document.addEventListener('DOMContentLoaded', function() {
+        window.addEventListener('ui:new-message', function() {
+            hideEmptyPrompts();
+        });
+    });
+
     return {
         showInlineError,
         showProviderBanner,
         hideProviderBanner,
         showDiagnostics,
-        hideDiagnostics
+        hideDiagnostics,
+        showEmptyPrompts,
+        hideEmptyPrompts,
+        setupEmptyPromptsHandlers
     };
 })();

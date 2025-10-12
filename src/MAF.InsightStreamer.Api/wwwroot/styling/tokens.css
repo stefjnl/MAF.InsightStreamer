@@ -1,78 +1,198 @@
-/* Design tokens for theming */
+/* Design System Tokens - InsightStreamer */
 :root {
-  /* Colors - Light theme (default) */
-  --bg: #ffffff;
-  --surface: #f8fafc;
-  --text: #0f172a;
-  --muted: #64748b;
-  --border: #e2e8f0;
-  --accent: #3b82f6;
-  --accent-contrast: #ffffff;
-  
+  /* Colors - Light */
+  --bg: #ffffff;                 /* base bg (white) */
+  --bg-subtle: #fafafa;          /* neutral-50 */
+  --surface: #ffffff;            /* cards/surfaces */
+  --surface-alt: #f8fafc;        /* slate-50 */
+  --border: #e5e7eb;             /* neutral-200 */
+  --border-strong: #d1d5db;      /* neutral-300 */
+  --text: #0b0f19;               /* near-black - WCAG AAA contrast */
+  --text-muted: #374151;         /* increased contrast from slate-600 to slate-800 for WCAG AA */
+
+  /* Accent (Indigo) */
+  --accent: #4f46e5;             /* indigo-600 */
+  --accent-600: #4f46e5;
+  --accent-700: #4338ca;
+  --accent-foreground: #ffffff;
+
   /* Radii */
-  --radius-md: 0.375rem;
-  --radius-lg: 0.5rem;
-  --radius-xl: 0.75rem;
-  
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
   /* Shadows */
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.10);
+
+  /* Spacing */
+  --gutter-mobile: 24px;
+  --gutter-desktop: 32px;
+  --gutter-desktop-lg: 40px;
+  --bubble-px: 16px;
+  --bubble-py: 12px;
+
+  /* Typography */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+  --font-mono: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  --text-sm: 0.875rem;  /* 14px */
+  --text-base: 1rem;    /* 16px */
+  --text-lg: 1.125rem;  /* 18px */
+  --leading-tight: 1.4;
+  --leading-normal: 1.6;
+  --leading-relaxed: 1.7;
+
+  /* Focus Ring */
+  --ring: var(--accent);
+  --ring-offset: #ffffff;
+
+  /* Code (Light) */
+  --code-bg: #f8fafc; /* base code bg */
+  --code-zebra: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.03) 0px,
+    rgba(0, 0, 0, 0.03) 24px,
+    transparent 24px,
+    transparent 48px
+  );
 }
 
-/* Dark theme override (OS preference) */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0f172a;
-    --surface: #1e293b;
-    --text: #f8fafc;
-    --muted: #94a3b8;
-    --border: #334155;
-    --accent: #60a5fa;
-    --accent-contrast: #0f172a;
-  }
-}
-
-/* Explicit theme overrides (user preference takes precedence) */
-[data-theme="light"] {
-  --bg: #ffffff;
-  --surface: #f8fafc;
-  --text: #0f172a;
-  --muted: #64748b;
-  --border: #e2e8f0;
-  --accent: #3b82f6;
-  --accent-contrast: #ffffff;
-}
-
+/* Dark theme (explicit via data-theme) */
 [data-theme="dark"] {
-  --bg: #0f172a;
-  --surface: #1e293b;
-  --text: #f8fafc;
-  --muted: #94a3b8;
-  --border: #334155;
-  --accent: #60a5fa;
-  --accent-contrast: #0f172a;
+  --bg: #0a0a0a;                 /* neutral-950 */
+  --bg-subtle: #0f0f0f;          /* deep subtle */
+  --surface: #111111;            /* neutral-900-ish surface */
+  --surface-alt: #171717;        /* neutral-850-ish */
+  --border: #262626;             /* neutral-800 */
+  --border-strong: #3f3f46;      /* zinc-700 */
+  --text: #f3f4f6;               /* increased from neutral-200 to neutral-100 for WCAG AA */
+  --text-muted: #9ca3af;         /* slate-400 - maintaining WCAG AA contrast */
+
+  /* Accent unchanged to keep brand; foreground ensured readable */
+  --ring-offset: #0a0a0a;
+
+  /* Code (Dark) */
+  --code-bg: #0e1113;
+  --code-zebra: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.05) 0px,
+    rgba(255, 255, 255, 0.05) 24px,
+    transparent 24px,
+    transparent 48px
+  );
 }
 
-/* Base mapping for quick visual effect */
-html, body {
-  background-color: var(--bg);
-  color: var(--text);
-}
-
-/* Utility class for surface elements */
-.token-surface {
-  background-color: var(--surface);
-  border: 1px solid var(--border);
-}
-
-/* Reduced motion support */
-@media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
+/* Prefer system dark when no explicit data-theme attribute is set */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --bg: #0a0a0a;
+    --bg-subtle: #0f0f0f;
+    --surface: #111111;
+    --surface-alt: #171717;
+    --border: #262626;
+    --border-strong: #3f3f46;
+    --text: #e5e7eb;
+    --text-muted: #9ca3af;
+    --ring-offset: #0a0a0a;
+    --code-bg: #0e1113;
+    --code-zebra: repeating-linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.05) 0px,
+      rgba(255, 255, 255, 0.05) 24px,
+      transparent 24px,
+      transparent 48px
+    );
   }
-  
-  .reduce-motion {
-    transition: none !important;
-    animation: none !important;
+}
+
+/* Base element styles using tokens */
+html { color-scheme: light dark; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Utility helpers leveraging tokens */
+.hairline { border: 1px solid var(--border); }
+.surface {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+.surface-alt {
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Focus visibility */
+:where(button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Code and preformatted text defaults */
+pre, code, kbd, samp {
+  font-family: var(--font-mono);
+}
+pre {
+  margin: 0;
+  padding: 12px 16px;
+  background: var(--code-bg);
+  background-image: var(--code-zebra);
+  background-attachment: local;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  font-size: var(--text-sm);
+  line-height: var(--leading-relaxed);
+  overflow: auto;
+}
+code {
+  background: color-mix(in oklab, var(--code-bg), transparent 60%);
+  border-radius: calc(var(--radius-md) / 2);
+  padding: 0.1em 0.3em;
+}
+
+/* Reduced motion respect */
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+
+/* Hairline separators helper */
+.hr-hairline {
+  height: 1px;
+  border: 0;
+  background: var(--border);
+}
+
+/* Accent button base (to be used with Tailwind utilities) */
+.button-accent {
+  background: var(--accent);
+  color: var(--accent-foreground);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Token-based gutters (for layout later) */
+:root {
+  --gutter-x: var(--gutter-mobile);
+}
+@media (min-width: 1024px) {
+  :root {
+    --gutter-x: var(--gutter-desktop);
+  }
+}
+@media (min-width: 1440px) {
+  :root {
+    --gutter-x: var(--gutter-desktop-lg);
   }
 }
