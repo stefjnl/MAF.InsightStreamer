@@ -47,7 +47,7 @@ public class ThreadManagementService : IThreadManagementService
     /// <param name="sessionId">The unique identifier for the document session</param>
     /// <returns>A unique thread identifier</returns>
     /// <exception cref="ArgumentException">Thrown when sessionId is empty</exception>
-    public async Task<string> CreateThreadForDocumentAsync(Guid sessionId, CancellationToken cancellationToken = default)
+    public Task<string> CreateThreadForDocumentAsync(Guid sessionId, CancellationToken cancellationToken = default)
     {
         if (sessionId == Guid.Empty)
         {
@@ -83,7 +83,7 @@ public class ThreadManagementService : IThreadManagementService
         
         _logger.LogInformation("Created new thread {ThreadId} for session {SessionId}", threadId, sessionId);
         
-        return threadId;
+        return Task.FromResult(threadId);
     }
 
     /// <summary>
@@ -92,7 +92,7 @@ public class ThreadManagementService : IThreadManagementService
     /// <param name="threadId">The thread identifier</param>
     /// <returns>ConversationThread instance if found, null otherwise</returns>
     /// <exception cref="ArgumentException">Thrown when threadId is null or empty</exception>
-    public async Task<ConversationThread?> GetThreadAsync(string threadId, CancellationToken cancellationToken = default)
+    public Task<ConversationThread?> GetThreadAsync(string threadId, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(threadId))
         {
@@ -107,11 +107,11 @@ public class ThreadManagementService : IThreadManagementService
             _cache.TryGetValue(metadataCacheKey, out ConversationThread? metadata))
         {
             _logger.LogDebug("Retrieved thread {ThreadId} from cache", threadId);
-            return metadata;
+            return Task.FromResult(metadata);
         }
         
         _logger.LogWarning("Thread {ThreadId} not found in cache", threadId);
-        return null;
+        return Task.FromResult<ConversationThread?>(null);
     }
 
     /// <summary>
@@ -119,7 +119,7 @@ public class ThreadManagementService : IThreadManagementService
     /// </summary>
     /// <param name="threadId">The thread identifier to remove</param>
     /// <exception cref="ArgumentException">Thrown when threadId is null or empty</exception>
-    public async Task RemoveThreadAsync(string threadId, CancellationToken cancellationToken = default)
+    public Task RemoveThreadAsync(string threadId, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(threadId))
         {
@@ -147,6 +147,8 @@ public class ThreadManagementService : IThreadManagementService
         }
         
         _logger.LogInformation("Removed thread {ThreadId} and {MappingCount} session mappings", threadId, keysToRemove.Count);
+        
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -155,7 +157,7 @@ public class ThreadManagementService : IThreadManagementService
     /// <param name="threadId">The thread identifier</param>
     /// <returns>The AIAgent instance if found, null otherwise</returns>
     /// <exception cref="ArgumentException">Thrown when threadId is null or empty</exception>
-    public async Task<object?> GetAgentAsync(string threadId, CancellationToken cancellationToken = default)
+    public Task<object?> GetAgentAsync(string threadId, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(threadId))
         {
@@ -168,11 +170,11 @@ public class ThreadManagementService : IThreadManagementService
         if (_cache.TryGetValue(cacheKey, out AIAgent? agent))
         {
             _logger.LogDebug("Retrieved agent for thread {ThreadId} from cache", threadId);
-            return agent;
+            return Task.FromResult<object?>(agent);
         }
         
         _logger.LogWarning("Agent for thread {ThreadId} not found in cache", threadId);
-        return null;
+        return Task.FromResult<object?>(null);
     }
 
     /// <summary>

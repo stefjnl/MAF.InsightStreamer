@@ -167,7 +167,7 @@ public class DocumentParserService : IDocumentParserService
     /// </summary>
     /// <param name="stream">The stream containing the Word document data.</param>
     /// <returns>A task that represents the asynchronous operation, containing the extracted text content.</returns>
-    private async Task<string> ExtractFromWordAsync(Stream stream, CancellationToken cancellationToken = default)
+    private Task<string> ExtractFromWordAsync(Stream stream, CancellationToken cancellationToken = default)
     {
         // Check if stream is seekable
         if (!stream.CanSeek)
@@ -184,7 +184,7 @@ public class DocumentParserService : IDocumentParserService
             var body = wordDocument.MainDocumentPart?.Document?.Body;
             if (body == null)
             {
-                return string.Empty;
+                return Task.FromResult(string.Empty);
             }
 
             var text = new StringBuilder();
@@ -193,7 +193,7 @@ public class DocumentParserService : IDocumentParserService
                 text.AppendLine(element.InnerText);
             }
 
-            return text.ToString();
+            return Task.FromResult(text.ToString());
         }
         catch (Exception ex)
         {

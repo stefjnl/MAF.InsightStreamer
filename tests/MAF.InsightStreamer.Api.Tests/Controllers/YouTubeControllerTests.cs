@@ -59,7 +59,6 @@ public class YouTubeControllerTests : IClassFixture<WebApplicationFactory<Progra
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var result = await response.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.NotNull(result);
         Assert.Equal(expectedResponse, result.GetProperty("response").GetString());
     }
 
@@ -80,7 +79,6 @@ public class YouTubeControllerTests : IClassFixture<WebApplicationFactory<Progra
         // Assert
         Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
         var result = await response.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.NotNull(result);
         Assert.Equal(errorMessage, result.GetProperty("error").GetString());
     }
 
@@ -101,7 +99,6 @@ public class YouTubeControllerTests : IClassFixture<WebApplicationFactory<Progra
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var result = await response.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.NotNull(result);
         Assert.Equal(expectedResponse, result.GetProperty("response").GetString());
     }
 
@@ -118,7 +115,6 @@ public class YouTubeControllerTests : IClassFixture<WebApplicationFactory<Progra
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var result = await response.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.NotNull(result);
         Assert.Equal("Hello from YT controller", result.GetProperty("response").GetString());
     }
 
@@ -134,7 +130,6 @@ public class YouTubeControllerTests : IClassFixture<WebApplicationFactory<Progra
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var result = await response.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.NotNull(result);
         Assert.Contains("Configuration successfully loaded", result.GetProperty("message").GetString());
         Assert.True(result.TryGetProperty("configuration", out _));
     }

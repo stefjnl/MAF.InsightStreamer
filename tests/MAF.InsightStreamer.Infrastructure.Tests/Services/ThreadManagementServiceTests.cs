@@ -33,22 +33,24 @@ namespace MAF.InsightStreamer.Infrastructure.Tests.Services
             // Setup cache mock to properly handle CreateEntry method
             var sharedCache = new Dictionary<object, object>();
             
-            _memoryCacheMock.Setup(x => x.TryGetValue(It.IsAny<object>(), out It.Ref<object>.IsAny))
+#pragma warning disable CS8601 // Possible null reference assignment
+            _memoryCacheMock
+                .Setup(x => x.TryGetValue(It.IsAny<object>(), out It.Ref<object>.IsAny))
                 .Returns((object key, out object value) => {
-                    if (sharedCache.TryGetValue(key, out object? val)) {
-                        value = val;
-                        return true;
-                    }
                     value = null!;
-                    return false;
+                    var result = sharedCache.TryGetValue(key, out var val);
+                    if (result)
+                        value = val!;
+                    return result;
                 });
+#pragma warning restore CS8601 // Possible null reference assignment
             
             _memoryCacheMock.Setup(x => x.CreateEntry(It.IsAny<object>()))
                 .Returns((object key) =>
                 {
                     var entry = new Mock<ICacheEntry>();
                     var entryKey = key;
-                    object entryValue = null;
+                    object? entryValue = null;
                     
                     entry.Setup(e => e.Key).Returns(entryKey);
                     entry.SetupSet(e => e.Value = It.IsAny<object>()).Callback<object>(v => entryValue = v);

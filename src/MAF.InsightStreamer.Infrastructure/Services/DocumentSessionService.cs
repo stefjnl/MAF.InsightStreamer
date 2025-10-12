@@ -105,12 +105,12 @@ public class DocumentSessionService : IDocumentSessionService
     /// </summary>
     /// <param name="sessionId">The unique identifier for the session to update.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    public async Task UpdateSessionExpirationAsync(Guid sessionId, CancellationToken cancellationToken = default)
+    public Task UpdateSessionExpirationAsync(Guid sessionId, CancellationToken cancellationToken = default)
     {
         if (sessionId == Guid.Empty)
         {
             _logger.LogWarning("Attempted to update expiration for session with empty GUID");
-            return;
+            return Task.CompletedTask;
         }
 
         var cacheKey = GetSessionCacheKey(sessionId);
@@ -137,7 +137,7 @@ public class DocumentSessionService : IDocumentSessionService
             _logger.LogWarning("Attempted to update expiration for non-existent session with ID: {SessionId}", sessionId);
         }
 
-        return;
+        return Task.CompletedTask;
     }
 
     /// <summary>

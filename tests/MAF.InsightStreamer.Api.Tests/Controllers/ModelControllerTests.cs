@@ -41,7 +41,7 @@ namespace MAF.InsightStreamer.Api.Tests.Controllers
         }
 
         [Fact]
-        public async Task GetAvailableProviders_ReturnsProviders()
+        public Task GetAvailableProviders_ReturnsProviders()
         {
             // Arrange
             _configurationMock.Setup(config => config["CurrentProvider"]).Returns("OpenRouter");
@@ -54,6 +54,7 @@ namespace MAF.InsightStreamer.Api.Tests.Controllers
             var data = okResult.Value as System.Dynamic.ExpandoObject;
             
             // If ExpandoObject doesn't work, let's access using reflection
+#pragma warning disable CS8602 // Dereference of a possibly null reference
             var properties = okResult.Value.GetType().GetProperties();
             var currentProperty = properties.FirstOrDefault(p => p.Name == "Current");
             var providersProperty = properties.FirstOrDefault(p => p.Name == "Providers");
@@ -61,11 +62,12 @@ namespace MAF.InsightStreamer.Api.Tests.Controllers
             Assert.NotNull(currentProperty);
             Assert.NotNull(providersProperty);
             
-            var current = currentProperty.GetValue(okResult.Value);
-            var providers = providersProperty.GetValue(okResult.Value) as IEnumerable<object>;
+            var current = currentProperty.GetValue(okResult.Value)!; // Assert.NotNull ensures this is not null
+            var providers = (IEnumerable<object>)providersProperty.GetValue(okResult.Value)!; // Assert.NotNull ensures this is not null
             
-            Assert.Equal("OpenRouter", current.ToString());
+            Assert.Equal("OpenRouter", (current as string) ?? current?.ToString() ?? string.Empty);
             Assert.NotNull(providers);
+#pragma warning restore CS8602 // Dereference of a possibly null reference
             
             // Verify all providers are returned by checking the properties of each provider object
             var providerList = providers.ToList();
@@ -100,6 +102,8 @@ namespace MAF.InsightStreamer.Api.Tests.Controllers
                        nameProp.GetValue(p)?.ToString() == "OpenAI" &&
                        Convert.ToInt32(valueProp.GetValue(p)) == 3;
             });
+            
+            return Task.CompletedTask;
         }
 
         [Fact]
@@ -192,19 +196,21 @@ namespace MAF.InsightStreamer.Api.Tests.Controllers
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result);
             
+#pragma warning disable CS8602 // Dereference of a possibly null reference
             var properties = okResult.Value.GetType().GetProperties();
             var messageProperty = properties.FirstOrDefault(p => p.Name == "Message");
             var warningProperty = properties.FirstOrDefault(p => p.Name == "Warning");
             
             Assert.NotNull(messageProperty);
-            var message = messageProperty.GetValue(okResult.Value)?.ToString();
+            var message = messageProperty.GetValue(okResult.Value)!.ToString(); // Assert.NotNull ensures this is not null
             Assert.Contains("Switched to", message);
             
             if (warningProperty != null)
             {
-                var warning = warningProperty.GetValue(okResult.Value)?.ToString();
+                var warning = warningProperty.GetValue(okResult.Value)!.ToString(); // Assert.NotNull ensures this is not null
                 Assert.Equal("All conversation history has been reset", warning);
             }
+#pragma warning restore CS8602 // Dereference of a possibly null reference
             
             _orchestratorServiceMock.Verify(
                 service => service.SwitchProvider(
@@ -232,12 +238,14 @@ namespace MAF.InsightStreamer.Api.Tests.Controllers
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result);
             
+#pragma warning disable CS8602 // Dereference of a possibly null reference
             var properties = okResult.Value.GetType().GetProperties();
             var messageProperty = properties.FirstOrDefault(p => p.Name == "Message");
             
             Assert.NotNull(messageProperty);
-            var message = messageProperty.GetValue(okResult.Value)?.ToString();
+            var message = messageProperty.GetValue(okResult.Value)!.ToString(); // Assert.NotNull ensures this is not null
             Assert.Contains("Switched to OpenRouter", message);
+#pragma warning restore CS8602 // Dereference of a possibly null reference
             
             _orchestratorServiceMock.Verify(
                 service => service.SwitchProvider(
@@ -265,12 +273,14 @@ namespace MAF.InsightStreamer.Api.Tests.Controllers
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result);
             
+#pragma warning disable CS8602 // Dereference of a possibly null reference
             var properties = okResult.Value.GetType().GetProperties();
             var messageProperty = properties.FirstOrDefault(p => p.Name == "Message");
             
             Assert.NotNull(messageProperty);
-            var message = messageProperty.GetValue(okResult.Value)?.ToString();
+            var message = messageProperty.GetValue(okResult.Value)!.ToString(); // Assert.NotNull ensures this is not null
             Assert.Contains("Switched to LMStudio", message);
+#pragma warning restore CS8602 // Dereference of a possibly null reference
             
             _orchestratorServiceMock.Verify(
                 service => service.SwitchProvider(

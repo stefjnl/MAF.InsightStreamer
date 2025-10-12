@@ -202,19 +202,19 @@ namespace MAF.InsightStreamer.Infrastructure.Tests.Services
 
             // Act & Assert
             await Assert.ThrowsAsync<ArgumentException>(() =>
-                _orchestratorService.AskQuestionAsync(null, chunks, Guid.NewGuid().ToString(), conversationHistory));
+                _orchestratorService.AskQuestionAsync(null!, chunks, Guid.NewGuid().ToString(), conversationHistory));
                 
             await Assert.ThrowsAsync<ArgumentException>(() =>
                 _orchestratorService.AskQuestionAsync("", chunks, Guid.NewGuid().ToString(), conversationHistory));
                 
             await Assert.ThrowsAsync<ArgumentException>(() =>
-                _orchestratorService.AskQuestionAsync("test question", null, Guid.NewGuid().ToString(), conversationHistory));
+                _orchestratorService.AskQuestionAsync("test question", null!, Guid.NewGuid().ToString(), conversationHistory));
                 
             await Assert.ThrowsAsync<ArgumentException>(() =>
                 _orchestratorService.AskQuestionAsync("test question", new List<DocumentChunk>(), Guid.NewGuid().ToString(), conversationHistory));
                 
             await Assert.ThrowsAsync<ArgumentException>(() =>
-                _orchestratorService.AskQuestionAsync("test question", chunks, null, conversationHistory));
+                _orchestratorService.AskQuestionAsync("test question", chunks, null!, conversationHistory));
                 
             await Assert.ThrowsAsync<ArgumentException>(() =>
                 _orchestratorService.AskQuestionAsync("test question", chunks, "", conversationHistory));

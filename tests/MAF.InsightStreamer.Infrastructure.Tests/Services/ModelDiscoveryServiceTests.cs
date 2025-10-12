@@ -132,7 +132,7 @@ namespace MAF.InsightStreamer.Infrastructure.Tests.Services
                 new AvailableModel("cached-model", "Cached Model", ModelProvider.Ollama, 1000000, DateTime.UtcNow, true)
             };
 
-            object cacheValue = cachedModels;
+            object? cacheValue = cachedModels;
             _memoryCacheMock.Setup(cache => cache.TryGetValue($"models:{ModelProvider.Ollama}", out cacheValue))
                 .Returns(true);
 
@@ -149,7 +149,7 @@ namespace MAF.InsightStreamer.Infrastructure.Tests.Services
         public async Task DiscoverModels_DoesNotUseCache_WhenCacheMiss()
         {
             // Arrange
-            object cacheValue;
+            object? cacheValue = null;
             _memoryCacheMock.Setup(cache => cache.TryGetValue($"models:{ModelProvider.Ollama}", out cacheValue))
                 .Returns(false);
 

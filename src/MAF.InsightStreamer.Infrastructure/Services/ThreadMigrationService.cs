@@ -30,7 +30,7 @@ namespace MAF.InsightStreamer.Infrastructure.Services
         /// Returns a user-visible warning message describing the reset.
         /// </summary>
         /// <param name="cancellationToken">Cancellation token</param>
-        public async Task<string> ResetOnModelSwitchAsync(CancellationToken cancellationToken = default)
+        public Task<string> ResetOnModelSwitchAsync(CancellationToken cancellationToken = default)
         {
             _logger.LogInformation("Resetting all conversation threads due to model provider switch");
             
@@ -45,7 +45,7 @@ namespace MAF.InsightStreamer.Infrastructure.Services
             
             _logger.LogWarning(warningMessage);
             
-            return warningMessage;
+            return Task.FromResult(warningMessage);
         }
 
         /// <summary>
