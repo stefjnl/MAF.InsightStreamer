@@ -1,21 +1,26 @@
 namespace MAF.InsightStreamer.Infrastructure.Services;
 
+using ModelContextProtocol;
 using ModelContextProtocol.Client;
 using MAF.InsightStreamer.Domain.Models;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
-using System.Text.RegularExpressions;
+using System.Text.Json.Serialization;
 
 public class McpYouTubeService : IDisposable
 {
     private readonly ILogger<McpYouTubeService> _logger;
+    private readonly McpGatewayHostedService _gatewayService;
     private McpClient? _mcpClient;
     private readonly SemaphoreSlim _initLock = new(1, 1);
     private bool _isInitialized;
 
-    public McpYouTubeService(ILogger<McpYouTubeService> logger)
+    public McpYouTubeService(
+        ILogger<McpYouTubeService> logger,
+        McpGatewayHostedService gatewayService)
     {
         _logger = logger;
+        _gatewayService = gatewayService;
     }
 
     private async Task EnsureInitializedAsync(CancellationToken cancellationToken = default)
@@ -27,31 +32,39 @@ public class McpYouTubeService : IDisposable
         {
             if (_isInitialized) return;
 
-            _logger.LogInformation("Initializing Docker MCP Gateway connection...");
-
-            var options = new StdioClientTransportOptions
+            // Wait for gateway to be ready
+            var maxWait = TimeSpan.FromSeconds(30);
+            var startTime = DateTime.UtcNow;
+            
+            while (!_gatewayService.IsReady && DateTime.UtcNow - startTime < maxWait)
             {
-                Command = "docker",
-                Arguments = new[] { "mcp", "gateway", "run" },
-                Name = "Docker MCP Gateway",
-                EnvironmentVariables = new Dictionary<string, string?>
-                {
-                    { "PATH", Environment.GetEnvironmentVariable("PATH") },
-                    { "HOME", Environment.GetEnvironmentVariable("HOME")
-                                ?? Environment.GetEnvironmentVariable("USERPROFILE") },
-                    { "DOCKER_HOST", Environment.GetEnvironmentVariable("DOCKER_HOST") }
-                }
+                _logger.LogDebug("Waiting for MCP Gateway to be ready...");
+                await Task.Delay(500, cancellationToken);
+            }
+
+            if (!_gatewayService.IsReady)
+            {
+                throw new InvalidOperationException("MCP Gateway failed to start within timeout period");
+            }
+
+            _logger.LogInformation("Connecting to MCP Gateway on port {Port}...", _gatewayService.GatewayPort);
+
+            // Use HTTP transport to connect to streaming gateway
+            var options = new HttpClientTransportOptions
+            {
+                Endpoint = new Uri($"http://localhost:{_gatewayService.GatewayPort}/mcp"),
+                Name = "MCP Gateway HTTP Transport"
             };
 
-            var transport = new StdioClientTransport(options);
-            _mcpClient = await McpClient.CreateAsync(transport);
+            var transport = new HttpClientTransport(options);
+            _mcpClient = await McpClient.CreateAsync(transport, cancellationToken: cancellationToken);
 
             _isInitialized = true;
-            _logger.LogInformation("Successfully connected to Docker MCP Gateway");
+            _logger.LogInformation("Successfully connected to MCP Gateway");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to initialize Docker MCP Gateway connection");
+            _logger.LogError(ex, "Failed to initialize MCP client");
             throw;
         }
         finally
@@ -72,27 +85,23 @@ public class McpYouTubeService : IDisposable
             if (_mcpClient == null)
             {
                 _logger.LogError("MCP client is not initialized");
-                // For now, return empty list as a placeholder while we fix the actual implementation
-                _logger.LogInformation("Returning empty transcript as placeholder for video: {VideoId}", videoId);
                 return new List<TranscriptChunk>();
             }
 
-            // Construct YouTube URL from video ID
             var videoUrl = $"https://www.youtube.com/watch?v={videoId}";
-
-            _logger.LogInformation("Requesting transcript via MCP for video: {VideoId} (URL: {VideoUrl})",
-                videoId, videoUrl);
+            _logger.LogInformation("Requesting transcript via MCP for video: {VideoId}", videoId);
 
             // Call the get_timed_transcript tool (includes timestamps)
             var toolArguments = new Dictionary<string, object?>
             {
                 { "url", videoUrl },
-                { "lang", language }  // May be "lang" or "language" - check tool schema
+                { "lang", language }
             };
 
             var toolResult = await _mcpClient.CallToolAsync(
-                "get_timed_transcript",  // Use timed version for timestamps
-                toolArguments
+                "get_timed_transcript",
+                toolArguments,
+                cancellationToken: cancellationToken
             );
 
             if (toolResult?.Content == null || !toolResult.Content.Any())
@@ -101,9 +110,8 @@ public class McpYouTubeService : IDisposable
                 return new List<TranscriptChunk>();
             }
 
-            // Parse the result - temporarily handle this as a placeholder while we test the build
-            var chunks = new List<TranscriptChunk>();
-            _logger.LogInformation("Placeholder parsing completed for transcript result");
+            // Parse the result
+            var chunks = ParseMcpTranscriptResult((IReadOnlyList<ModelContextProtocol.Protocol.ContentBlock>)toolResult.Content);
 
             _logger.LogInformation("Successfully retrieved {ChunkCount} transcript chunks via MCP for video: {VideoId}",
                 chunks.Count, videoId);
@@ -117,7 +125,7 @@ public class McpYouTubeService : IDisposable
         }
     }
 
-    private List<TranscriptChunk> ParseMcpTranscriptResult(IReadOnlyList<object> content)
+    private List<TranscriptChunk> ParseMcpTranscriptResult(IReadOnlyList<ModelContextProtocol.Protocol.ContentBlock> content)
     {
         var chunks = new List<TranscriptChunk>();
 
@@ -125,42 +133,29 @@ public class McpYouTubeService : IDisposable
         {
             foreach (var item in content)
             {
-                // MCP returns content as text - need to inspect actual format
-                var textContent = item?.ToString() ?? "";
-                
-                if (string.IsNullOrWhiteSpace(textContent))
-                    continue;
-
-                // Try to parse as JSON first (most likely format)
-                if (textContent.TrimStart().StartsWith("[") || textContent.TrimStart().StartsWith("{"))
+                if (item is ModelContextProtocol.Protocol.TextContentBlock textBlock)
                 {
-                    try
+                    var text = textBlock.Text;
+                    if (string.IsNullOrWhiteSpace(text)) continue;
+
+                    // Parse the actual MCP response format
+                    var response = JsonSerializer.Deserialize<McpTranscriptResponse>(text);
+                    if (response?.Snippets != null)
                     {
-                        var segments = JsonSerializer.Deserialize<List<TranscriptSegment>>(textContent);
-                        if (segments != null)
+                        int index = 0;
+                        foreach (var snippet in response.Snippets)
                         {
-                            int index = 0;
-                            foreach (var segment in segments)
+                            chunks.Add(new TranscriptChunk
                             {
-                                chunks.Add(new TranscriptChunk
-                                {
-                                    ChunkIndex = index++,
-                                    Text = segment.Text ?? "",
-                                    StartTimeSeconds = segment.Start,
-                                    EndTimeSeconds = segment.Start + (segment.Duration ?? 0)
-                                });
-                            }
-                            return chunks;
+                                ChunkIndex = index++,
+                                Text = snippet.Text ?? "",
+                                StartTimeSeconds = snippet.Start ?? 0,
+                                EndTimeSeconds = (snippet.Start ?? 0) + (snippet.Duration ?? 5)
+                            });
                         }
-                    }
-                    catch (JsonException)
-                    {
-                        // Not JSON, try text parsing
+                        return chunks;
                     }
                 }
-
-                // Fallback: Parse as formatted text
-                chunks.AddRange(ParseFormattedTranscript(textContent));
             }
         }
         catch (Exception ex)
@@ -170,65 +165,30 @@ public class McpYouTubeService : IDisposable
 
         return chunks;
     }
+public void Dispose()
+{
+    _initLock?.Dispose();
+}
 
-    private List<TranscriptChunk> ParseFormattedTranscript(string text)
-    {
-        var chunks = new List<TranscriptChunk>();
-        var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-        int chunkIndex = 0;
+// Helper classes for JSON deserialization (actual MCP response)
+private class McpTranscriptResponse
+{
+    [JsonPropertyName("title")]
+    public string? Title { get; set; }
+    
+    [JsonPropertyName("snippets")]
+    public List<SnippetItem>? Snippets { get; set; }
+}
 
-        foreach (var line in lines)
-        {
-            // Try multiple timestamp formats
-            // Format 1: [00:00:00 - 00:00:05] Text
-            var match = Regex.Match(line, @"\[(\d{2}):(\d{2}):(\d{2})\s*-\s*(\d{2}):(\d{2}):(\d{2})\]\s*(.+)");
-            
-            if (match.Success)
-            {
-                chunks.Add(new TranscriptChunk
-                {
-                    ChunkIndex = chunkIndex++,
-                    Text = match.Groups[7].Value.Trim(),
-                    StartTimeSeconds = ParseTimestamp(match.Groups[1].Value, match.Groups[2].Value, match.Groups[3].Value),
-                    EndTimeSeconds = ParseTimestamp(match.Groups[4].Value, match.Groups[5].Value, match.Groups[6].Value)
-                });
-                continue;
-            }
-
-            // Format 2: 00:00:00 - Text
-            match = Regex.Match(line, @"(\d{2}):(\d{2}):(\d{2})\s*-\s*(.+)");
-            if (match.Success)
-            {
-                var startTime = ParseTimestamp(match.Groups[1].Value, match.Groups[2].Value, match.Groups[3].Value);
-                chunks.Add(new TranscriptChunk
-                {
-                    ChunkIndex = chunkIndex++,
-                    Text = match.Groups[4].Value.Trim(),
-                    StartTimeSeconds = startTime,
-                    EndTimeSeconds = startTime + 5 // Estimate 5 second duration
-                });
-            }
-        }
-
-        return chunks;
-    }
-
-    private double ParseTimestamp(string hours, string minutes, string seconds)
-    {
-        return int.Parse(hours) * 3600 + int.Parse(minutes) * 60 + int.Parse(seconds);
-    }
-
-    public void Dispose()
-    {
-        _initLock?.Dispose();
-        GC.SuppressFinalize(this);
-    }
-
-    // Helper class for JSON deserialization
-    private class TranscriptSegment
-    {
-        public string? Text { get; set; }
-        public double Start { get; set; }
-        public double? Duration { get; set; }
-    }
+private class SnippetItem
+{
+    [JsonPropertyName("text")]
+    public string? Text { get; set; }
+    
+    [JsonPropertyName("start")]
+    public double? Start { get; set; }
+    
+    [JsonPropertyName("duration")]
+    public double? Duration { get; set; }
+}
 }

@@ -36,8 +36,7 @@ public class YouTubeServiceTests
             ApiKey = "test-api-key",
             Model = "test-model",
             Endpoint = "test-endpoint",
-            YouTubeApiKey = "test-youtube-api-key",
-            TranscriptServiceUrl = "http://localhost:7279"
+            YouTubeApiKey = "test-youtube-api-key"
         };
         
         _mockProviderSettings.Setup(x => x.Value).Returns(providerSettings);
@@ -121,8 +120,7 @@ public class YouTubeServiceTests
             ApiKey = "test-api-key",
             Model = "test-model",
             Endpoint = "test-endpoint",
-            YouTubeApiKey = "test-youtube-api-key",
-            TranscriptServiceUrl = "http://localhost:7279"
+            YouTubeApiKey = "test-youtube-api-key"
         };
         mockProviderSettings.Setup(x => x.Value).Returns(providerSettings);
         
@@ -145,8 +143,7 @@ public class YouTubeServiceTests
             ApiKey = "test-api-key",
             Model = "test-model",
             Endpoint = "test-endpoint",
-            YouTubeApiKey = "test-youtube-api-key",
-            TranscriptServiceUrl = "http://localhost:7279"
+            YouTubeApiKey = "test-youtube-api-key"
         };
         mockProviderSettings.Setup(x => x.Value).Returns(providerSettings);
         
@@ -179,7 +176,6 @@ public class YouTubeServiceTests
             Model = "test-model",
             Endpoint = "test-endpoint",
             YouTubeApiKey = "", // Empty API key
-            TranscriptServiceUrl = "http://localhost:7279"
         };
         mockProviderSettings.Setup(x => x.Value).Returns(providerSettings);
         

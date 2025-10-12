@@ -17,8 +17,12 @@ public static class ServiceCollectionExtensions
         IConfiguration configuration)
     {
         // Register configuration
-        services.Configure<ProviderSettings>(
-            configuration.GetSection("ProviderSettings"));
+        services.Configure<ProviderSettings>(configuration.GetSection(ProviderSettings.SectionName));
+        
+        // Register MCP services
+        services.AddSingleton<McpGatewayHostedService>();
+        services.AddHostedService(provider => provider.GetRequiredService<McpGatewayHostedService>());
+        services.AddSingleton<McpYouTubeService>();
         
         // Register document processing configuration
         services.Configure<DocumentProcessingSettings>(
