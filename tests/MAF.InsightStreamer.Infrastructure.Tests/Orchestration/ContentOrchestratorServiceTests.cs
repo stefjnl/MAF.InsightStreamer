@@ -1,3 +1,4 @@
+using MAF.InsightStreamer.Application.Configuration;
 using MAF.InsightStreamer.Application.Interfaces;
 using MAF.InsightStreamer.Domain.Models;
 using MAF.InsightStreamer.Infrastructure.Orchestration;
@@ -6,11 +7,14 @@ using MAF.InsightStreamer.Infrastructure.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.AI;
 using Moq;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Xunit;
+using System.Linq;
+using Microsoft.Agents.AI;
 
 namespace MAF.InsightStreamer.Infrastructure.Tests.Orchestration;
 
@@ -21,6 +25,7 @@ public class ContentOrchestratorServiceTests
     private readonly Mock<IThreadManagementService> _mockThreadManagementService;
     private readonly Mock<IOptions<ProviderSettings>> _mockSettings;
     private readonly Mock<ILogger<ContentOrchestratorService>> _mockLogger;
+    private readonly Mock<IChatClientFactory> _mockChatClientFactory;
     private readonly ContentOrchestratorService _service;
 
     public ContentOrchestratorServiceTests()
@@ -29,6 +34,22 @@ public class ContentOrchestratorServiceTests
         _mockChunkingService = new Mock<IChunkingService>();
         _mockThreadManagementService = new Mock<IThreadManagementService>();
         _mockLogger = new Mock<ILogger<ContentOrchestratorService>>();
+        _mockChatClientFactory = new Mock<IChatClientFactory>();
+
+        // Create a mock IChatClient with proper method setup for ChatClientAgent using the example from documentation
+        var chatClientMock = new Mock<IChatClient>();
+        chatClientMock
+            .Setup(x => x.GetResponseAsync(
+                It.IsAny<IEnumerable<ChatMessage>>(),
+                It.IsAny<ChatOptions>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ChatResponse([
+                new ChatMessage(ChatRole.Assistant, "Test response")
+            ]));
+
+        // Set up the factory to return the mock client
+        _mockChatClientFactory.Setup(x => x.CreateClient(It.IsAny<ProviderConfiguration>()))
+            .Returns(chatClientMock.Object);
 
         // Setup configuration to use user secrets
         var configuration = new ConfigurationBuilder()
@@ -48,7 +69,7 @@ public class ContentOrchestratorServiceTests
         _mockSettings = new Mock<IOptions<ProviderSettings>>();
         _mockSettings.Setup(s => s.Value).Returns(settings);
 
-        _service = new ContentOrchestratorService(_mockSettings.Object, _mockYouTubeService.Object, _mockChunkingService.Object, _mockThreadManagementService.Object, _mockLogger.Object);
+        _service = new ContentOrchestratorService(_mockSettings.Object, _mockYouTubeService.Object, _mockChunkingService.Object, _mockThreadManagementService.Object, _mockLogger.Object, _mockChatClientFactory.Object);
     }
 
     [Fact]
@@ -381,5 +402,29 @@ public class ContentOrchestratorServiceTests
         
         // Assert
         Assert.Contains("first 5", result); // Should mention processing only 5 chunks
+    }
+    
+}
+
+public class TestAsyncEnumerator<T> : IAsyncEnumerator<T>
+{
+    private readonly IEnumerator<T> _enumerator;
+
+    public TestAsyncEnumerator(IEnumerator<T> enumerator)
+    {
+        _enumerator = enumerator;
+    }
+
+    public T Current => _enumerator.Current;
+
+    public ValueTask<bool> MoveNextAsync()
+    {
+        return new ValueTask<bool>(_enumerator.MoveNext());
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        _enumerator?.Dispose();
+        return ValueTask.CompletedTask;
     }
 }

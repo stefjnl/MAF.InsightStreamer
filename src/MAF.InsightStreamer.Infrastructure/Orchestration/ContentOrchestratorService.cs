@@ -9,7 +9,9 @@ using System.ComponentModel;
 using System.Text.Json;
 using System.Threading;
 using MAF.InsightStreamer.Application.Interfaces;
+using MAF.InsightStreamer.Domain.Enums;
 using MAF.InsightStreamer.Domain.Models;
+using MAF.InsightStreamer.Application.Configuration;
 using MAF.InsightStreamer.Infrastructure.Providers;
 
 namespace MAF.InsightStreamer.Infrastructure.Orchestration;
@@ -19,8 +21,12 @@ public class ContentOrchestratorService : IContentOrchestratorService
     private readonly IYouTubeService _youtubeService;
     private readonly IChunkingService _chunkingService;
     private readonly IThreadManagementService _threadManagementService;
-    private readonly AIAgent _orchestrator;
+    private AIAgent _orchestrator;
     private readonly ILogger<ContentOrchestratorService> _logger;
+    private readonly IChatClientFactory _clientFactory;
+    private ProviderConfiguration _currentConfig;
+    private readonly object _agentLock = new();
+    private readonly string _instructions = "You coordinate content analysis workflows. Use available tools to extract, chunk, and summarize content.";
     
     // Cache for video data with 5-minute expiration
     private readonly ConcurrentDictionary<string, (VideoMetadata metadata, List<TranscriptChunk> transcript, DateTime timestamp)> _videoCache;
@@ -34,29 +40,28 @@ public class ContentOrchestratorService : IContentOrchestratorService
         IYouTubeService youtubeService,
         IChunkingService chunkingService,
         IThreadManagementService threadManagementService,
-        ILogger<ContentOrchestratorService> logger)
+        ILogger<ContentOrchestratorService> logger,
+        IChatClientFactory clientFactory)
     {
         _youtubeService = youtubeService;
         _chunkingService = chunkingService;
         _threadManagementService = threadManagementService;
         _logger = logger;
+        _clientFactory = clientFactory;
         _videoCache = new ConcurrentDictionary<string, (VideoMetadata, List<TranscriptChunk>, DateTime)>();
         _activeThreads = new ConcurrentDictionary<string, object>();
 
-        var config = settings.Value;
+        // Convert legacy settings to new config
+        var legacyConfig = settings.Value;
+        _currentConfig = new ProviderConfiguration
+        {
+            Provider = ModelProvider.OpenRouter,
+            ApiKey = legacyConfig.ApiKey,
+            Endpoint = legacyConfig.Endpoint,
+            Model = legacyConfig.Model
+        };
 
-        // Create ChatClient
-        ChatClient chatClient = new(
-            model: config.Model,
-            credential: new ApiKeyCredential(config.ApiKey),
-            options: new OpenAI.OpenAIClientOptions
-            {
-                Endpoint = new Uri(config.Endpoint)
-            }
-        );
-
-        // Convert to IChatClient
-        IChatClient client = chatClient.AsIChatClient();
+        var client = _clientFactory.CreateClient(_currentConfig);
 
         // Create orchestrator with ALL tools registered
         _orchestrator = new ChatClientAgent(
@@ -64,7 +69,7 @@ public class ContentOrchestratorService : IContentOrchestratorService
             new ChatClientAgentOptions
             {
                 Name = "ContentOrchestratorAgent",
-                Instructions = "You coordinate content analysis workflows. Use available tools to extract, chunk, and summarize content.",
+                Instructions = _instructions,
                 ChatOptions = new ChatOptions
                 {
                     Tools = [
@@ -133,6 +138,10 @@ public class ContentOrchestratorService : IContentOrchestratorService
         [Description("The YouTube video URL to extract")] string videoUrl,
         CancellationToken cancellationToken = default)
     {
+        _logger.LogDebug(
+            "ExtractYouTubeVideo called with {Provider}:{Model} for URL {VideoUrl}",
+            _currentConfig.Provider, _currentConfig.Model, videoUrl);
+
         if (string.IsNullOrWhiteSpace(videoUrl))
         {
             throw new ArgumentException("Video URL cannot be null or empty", nameof(videoUrl));
@@ -158,6 +167,10 @@ public class ContentOrchestratorService : IContentOrchestratorService
         [Description("Overlap between chunks in characters (default: 400 ≈ 100 tokens)")] int overlapSize = 400,
         CancellationToken cancellationToken = default)
     {
+        _logger.LogDebug(
+            "ChunkTranscriptForAnalysis called with {Provider}:{Model} for URL {VideoUrl}",
+            _currentConfig.Provider, _currentConfig.Model, videoUrl);
+
         try
         {
             var (metadata, transcript) = await GetVideoDataAsync(videoUrl, cancellationToken);
@@ -182,6 +195,10 @@ public class ContentOrchestratorService : IContentOrchestratorService
         [Description("Maximum number of chunks to process (default: 10)")] int maxChunks = 10,
         CancellationToken cancellationToken = default)
     {
+        _logger.LogDebug(
+            "SummarizeVideo called with {Provider}:{Model} for URL {VideoUrl}",
+            _currentConfig.Provider, _currentConfig.Model, videoUrl);
+
         try
         {
             var (metadata, transcript) = await GetVideoDataAsync(videoUrl, cancellationToken);
@@ -215,11 +232,17 @@ Provide the summary using this markdown formatting.";
             // Use orchestrator's RunAsync (it will use the LLM internally)
             var summary = await _orchestrator.RunAsync(prompt);
 
+            _logger.LogInformation(
+                "Successfully generated summary for video '{VideoTitle}' using {Provider}:{Model}",
+                metadata.Title, _currentConfig.Provider, _currentConfig.Model);
+
             return $"Summary of '{metadata.Title}' ({metadata.Duration}):\n\n{summary}\n\n" +
                    $"Note: Summary based on first {chunksToProcess.Count} of {chunks.Count} total chunks.";
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Error generating summary for video {VideoUrl} with {Provider}:{Model}",
+                videoUrl, _currentConfig.Provider, _currentConfig.Model);
             return $"Error generating summary for video: {ex.Message}";
         }
     }
@@ -231,6 +254,10 @@ Provide the summary using this markdown formatting.";
         [Description("The conversation history for maintaining context")] string conversationHistory,
         CancellationToken cancellationToken = default)
     {
+        _logger.LogDebug(
+            "AnswerQuestionAboutDocument called with {Provider}:{Model} for question: {Question}",
+            _currentConfig.Provider, _currentConfig.Model, question.Length > 100 ? question.Substring(0, 100) + "..." : question);
+
         try
         {
             var prompt = $@"You are a helpful assistant that answers questions about documents based on the provided context.
@@ -269,7 +296,8 @@ Example valid response:
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error answering question about document");
+            _logger.LogError(ex, "Error answering question about document with {Provider}:{Model}",
+                _currentConfig.Provider, _currentConfig.Model);
             return $"{{\"answer\": \"Error answering question: {ex.Message}\", \"relevantChunks\": []}}";
         }
     }
@@ -289,6 +317,10 @@ Example valid response:
         List<ConversationMessage> conversationHistory,
         CancellationToken cancellationToken = default)
     {
+        _logger.LogDebug(
+            "Processing AskQuestionAsync request with {Provider}:{Model} for thread {ThreadId}",
+            _currentConfig.Provider, _currentConfig.Model, threadId);
+
         if (string.IsNullOrWhiteSpace(question))
         {
             throw new ArgumentException("Question cannot be null or empty", nameof(question));
@@ -368,8 +400,8 @@ Example valid response:
                         .ToList();
                 }
 
-                _logger.LogInformation("Successfully answered question for thread {ThreadId} using {ChunkCount} chunks",
-                    threadId, relevantChunks.Count);
+                _logger.LogInformation("Successfully answered question for thread {ThreadId} using {ChunkCount} chunks with {Provider}:{Model}",
+                    threadId, relevantChunks.Count, _currentConfig.Provider, _currentConfig.Model);
 
                 return response;
             }
@@ -386,7 +418,8 @@ Example valid response:
                     {
                         var jsonDoc = JsonDocument.Parse(cleanedResponse);
                         var answer = jsonDoc.RootElement.GetProperty("answer").GetString() ?? cleanedResponse;
-                        _logger.LogInformation("Successfully parsed cleaned JSON response for thread {ThreadId}", threadId);
+                        _logger.LogInformation("Successfully parsed cleaned JSON response for thread {ThreadId} with {Provider}:{Model}",
+                            threadId, _currentConfig.Provider, _currentConfig.Model);
                         return cleanedResponse;
                     }
                     catch (JsonException cleanEx)
@@ -402,15 +435,89 @@ Example valid response:
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error in AskQuestionAsync for thread {ThreadId}", threadId);
+            _logger.LogError(ex, "Error in AskQuestionAsync for thread {ThreadId} with {Provider}:{Model}",
+                threadId, _currentConfig.Provider, _currentConfig.Model);
             return $"{{\"answer\": \"Error processing question: {ex.Message}\", \"relevantChunks\": []}}";
         }
     }
 
     public async Task<string> RunAsync(string input, CancellationToken cancellationToken = default)
     {
-        AgentRunResponse response = await _orchestrator.RunAsync(input);
+        _logger.LogDebug(
+            "Processing request with {Provider}:{Model}",
+            _currentConfig.Provider, _currentConfig.Model);
+
+        AIAgent agent;
+        lock (_agentLock)
+        {
+            agent = _orchestrator;  // Get reference inside lock
+        }
+
+        var response = await agent.RunAsync(input, cancellationToken: cancellationToken);
         return response.Text;
+    }
+
+    public void SwitchProvider(ModelProvider provider, string model, string endpoint, string? apiKey)
+    {
+        lock (_agentLock)
+        {
+            // Log the switch operation details
+            _logger.LogInformation(
+                "Switching provider from {OldProvider}:{OldModel} to {NewProvider}:{NewModel}",
+                _currentConfig.Provider, _currentConfig.Model, provider, model);
+
+            var newConfig = new ProviderConfiguration
+            {
+                Provider = provider,
+                Model = model,
+                Endpoint = endpoint,
+                ApiKey = apiKey
+            };
+
+            _logger.LogInformation(
+                "Creating new client for {NewProvider} with model {Model} at endpoint {Endpoint}",
+                newConfig.Provider, newConfig.Model, newConfig.Endpoint);
+
+            var newClient = _clientFactory.CreateClient(newConfig);
+            
+            // Recreate agent with new client
+            _orchestrator = new ChatClientAgent(
+                newClient,
+                new ChatClientAgentOptions
+                {
+                    Name = "ContentOrchestrator",
+                    Instructions = _instructions,  // Preserve instructions
+                    ChatOptions = GetChatOptions()     // Preserve tools
+                }
+            );
+
+            _currentConfig = newConfig;
+            
+            _logger.LogInformation(
+                "Successfully switched to {NewProvider}:{NewModel}, previous provider was {OldProvider}:{OldModel}",
+                _currentConfig.Provider, _currentConfig.Model, provider, model);
+        }
+    }
+    
+    /// <summary>
+    /// Gets the current provider configuration
+    /// </summary>
+    public ProviderConfiguration GetCurrentProviderConfiguration()
+    {
+        return _currentConfig;
+    }
+
+    private ChatOptions GetChatOptions()
+    {
+        return new ChatOptions
+        {
+            Tools = [
+                AIFunctionFactory.Create(ExtractYouTubeVideo),
+                AIFunctionFactory.Create(ChunkTranscriptForAnalysis),
+                AIFunctionFactory.Create(SummarizeVideo),
+                AIFunctionFactory.Create(AnswerQuestionAboutDocument)
+            ]
+        };
     }
 
     /// <summary>

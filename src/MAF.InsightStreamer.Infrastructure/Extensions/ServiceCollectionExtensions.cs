@@ -28,6 +28,10 @@ public static class ServiceCollectionExtensions
         services.Configure<QuestionAnswerSettings>(
             configuration.GetSection("QuestionAnswer"));
 
+        // Register model discovery configuration
+        services.Configure<ModelDiscoverySettings>(
+            configuration.GetSection("ModelDiscovery"));
+
         // Register HttpClient for YouTubeService
         services.AddHttpClient<IYouTubeService, YouTubeService>();
 
@@ -38,14 +42,23 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IDocumentParserService, DocumentParserService>();
         services.AddScoped<IDocumentService, DocumentService>();
 
+        // Model discovery service
+        services.AddScoped<IModelDiscoveryService, ModelDiscoveryService>();
+
         // Register orchestrator as scoped - depends on scoped services
         services.AddScoped<IContentOrchestratorService, ContentOrchestratorService>();
+
+        // Register chat client factory
+        services.AddSingleton<IChatClientFactory, ChatClientFactory>();
 
         // Register memory cache for caching functionality
         services.AddMemoryCache();
         
         // Register thread management service
         services.AddScoped<IThreadManagementService, ThreadManagementService>();
+        
+        // Register thread migration service
+        services.AddScoped<IThreadMigrationService, ThreadMigrationService>();
         
         // Register document session service
         services.AddScoped<IDocumentSessionService, DocumentSessionService>();
