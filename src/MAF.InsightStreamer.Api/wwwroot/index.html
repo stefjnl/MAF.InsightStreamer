@@ -3,205 +3,327 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light dark">
     <title>MAF.InsightStreamer</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="/styling/tokens.css">
+    <!-- Preline UI intentionally deferred to avoid build pipeline dependencies -->
+    <script src="js/ui/toast.js"></script>
     <script src="js/model-selector.js"></script>
+    <script src="/js/ui/conversations.js"></script>
 </head>
-<body class="bg-gray-100 min-h-screen">
-    <div class="max-w-4xl mx-auto p-8">
-        <!-- Header -->
-        <header class="text-center mb-12">
-            <h1 class="text-4xl font-bold text-gray-900 mb-2">MAF.InsightStreamer</h1>
-            <p class="text-gray-600">AI-Powered Content Analysis</p>
-        </header>
-        
-        <!-- Model Selector -->
-        <div class="model-selector bg-white shadow-md rounded-lg p-4 mb-8">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Provider:</label>
-                    <select id="provider-select" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"></select>
-                </div>
+<body class="min-h-screen bg-neutral-50 dark:bg-neutral-950">
+    <!-- Skip to content link for accessibility -->
+    <a href="#chatLog" class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:bg-white dark:focus:bg-neutral-900 focus:text-neutral-900 dark:focus:text-neutral-100 focus:px-3 focus:py-2 focus:rounded-md">Skip to chat</a>
+    
+    <!-- Sticky Header -->
+    <header role="banner" class="sticky top-0 z-30 backdrop-blur border-b border-neutral-200/60 dark:border-neutral-800/60 bg-white/70 dark:bg-neutral-900/60">
+        <div class="container mx-auto max-w-[1024px] px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <h1 class="text-xl font-semibold text-gray-900 dark:text-white">InsightStreamer</h1>
                 
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Model:</label>
-                    <select id="model-select" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"></select>
-                </div>
-                
-                <div>
-                    <button id="switch-model-btn" class="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition font-medium">Switch Model</button>
-                </div>
-                
-                <div>
-                    <span id="current-model-display" class="text-sm text-gray-600"></span>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Tab Navigation -->
-        <div class="bg-white shadow-md rounded-lg p-2 mb-8">
-            <div class="flex">
-                <button
-                    id="youtubeTab"
-                    onclick="switchTab('youtube')"
-                    class="flex-1 py-2 px-4 rounded-lg font-medium transition bg-blue-600 text-white"
-                >
-                    YouTube Analysis
-                </button>
-                <button
-                    id="documentTab"
-                    onclick="switchTab('document')"
-                    class="flex-1 py-2 px-4 rounded-lg font-medium transition text-gray-700 hover:bg-gray-100"
-                >
-                    Document Analysis
-                </button>
-            </div>
-        </div>
-
-        <!-- YouTube Input Section -->
-        <div id="youtubeSection" class="bg-white shadow-md rounded-lg p-6 mb-8">
-            <label for="videoUrl" class="block text-sm font-medium text-gray-700 mb-2">
-                YouTube Video URL
-            </label>
-            <div class="flex gap-4">
-                <input
-                    type="text"
-                    id="videoUrl"
-                    placeholder="https://www.youtube.com/watch?v=..."
-                    class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                <button
-                    onclick="analyzeVideo()"
-                    class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition font-medium"
-                >
-                    Analyze
-                </button>
-            </div>
-        </div>
-
-        <!-- Document Upload Section -->
-        <div id="documentSection" class="hidden bg-white shadow-md rounded-lg p-6 mb-8">
-            <label for="documentFile" class="block text-sm font-medium text-gray-700 mb-2">
-                Upload Document (PDF, Word, Markdown, or Plain Text)
-            </label>
-            <div class="mb-4">
-                <input
-                    type="file"
-                    id="documentFile"
-                    accept=".pdf,.docx,.md,.txt"
-                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                />
-                <p class="text-xs text-gray-500 mt-2">Maximum file size: 10MB. Supported formats: PDF, DOCX, MD, TXT</p>
-            </div>
-            <div class="flex gap-4">
-                <button
-                    onclick="analyzeDocument()"
-                    class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition font-medium"
-                >
-                    Analyze Document
-                </button>
-            </div>
-        </div>
-        
-        <!-- Loading Spinner -->
-        <div id="loading" class="hidden text-center py-8">
-            <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            <p class="text-gray-600 mt-4" id="loadingText">Analyzing content...</p>
-        </div>
-        
-        <!-- Error Message -->
-        <div id="error" class="hidden bg-red-50 border border-red-200 rounded-lg p-4 mb-8">
-            <p class="text-red-800" id="errorMessage"></p>
-        </div>
-        
-        <!-- Results Section -->
-        <div id="results" class="hidden bg-white shadow-lg rounded-lg p-6">
-            <h2 class="text-2xl font-bold text-gray-900 mb-4" id="resultsTitle">Analysis Results</h2>
-            
-            <!-- Document Metadata -->
-            <div id="documentMetadata" class="hidden mb-6 p-4 bg-gray-50 rounded-lg">
-                <h3 class="text-lg font-semibold text-gray-800 mb-2">Document Information</h3>
-                <div class="grid grid-cols-2 gap-4 text-sm">
+                <!-- Provider and Model Selection -->
+                <div class="flex items-center space-x-2">
                     <div>
-                        <span class="font-medium text-gray-600">File Name:</span>
-                        <span id="metaFileName" class="text-gray-800 ml-2"></span>
-                    </div>
-                    <div>
-                        <span class="font-medium text-gray-600">File Type:</span>
-                        <span id="metaFileType" class="text-gray-800 ml-2"></span>
-                    </div>
-                    <div>
-                        <span class="font-medium text-gray-600">File Size:</span>
-                        <span id="metaFileSize" class="text-gray-800 ml-2"></span>
-                    </div>
-                    <div>
-                        <span class="font-medium text-gray-600">Page Count:</span>
-                        <span id="metaPageCount" class="text-gray-800 ml-2"></span>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Analysis Content -->
-            <div id="resultsContent" class="text-gray-700"></div>
-            
-            <!-- Q&A Section (Hidden by default) -->
-            <div id="qaSection" class="hidden mt-6 pt-6 border-t border-gray-200">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-xl font-semibold text-gray-800">Ask Questions About This Document</h3>
-                    <button
-                        id="newConversationBtn"
-                        onclick="startNewConversation()"
-                        class="text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded-md transition"
-                    >
-                        Start New Conversation
-                    </button>
-                </div>
-                
-                <!-- Chat Container -->
-                <div id="chatContainer" class="border border-gray-300 rounded-lg mb-4" style="height: 400px;">
-                    <!-- Messages Container -->
-                    <div id="messagesContainer" class="h-5/6 p-4 overflow-y-auto bg-gray-50 rounded-t-lg">
-                        <!-- Messages will be inserted here -->
-                        <div id="welcomeMessage" class="text-center text-gray-500 py-8">
-                            Ask a question about the document to get started
-                        </div>
+                        <label for="providerSelect" class="block text-xs font-medium text-gray-500 dark:text-gray-400">Provider</label>
+                        <select id="providerSelect" class="w-32 px-2 py-1 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
+                            <option value="">Loading...</option>
+                        </select>
                     </div>
                     
-                    <!-- Input Container -->
-                    <div class="h-1/6 p-3 border-t border-gray-300 bg-white rounded-b-lg">
-                        <div class="flex gap-2">
-                            <input
-                                type="text"
-                                id="questionInput"
-                                placeholder="Type your question here..."
-                                class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                onkeypress="handleQuestionKeyPress(event)"
-                            />
+                    <div>
+                        <label for="modelSelect" class="block text-xs font-medium text-gray-500 dark:text-gray-400">Model</label>
+                        <select id="modelSelect" class="w-40 px-2 py-1 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white" disabled>
+                            <option value="">Select provider first</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Status Indicator -->
+                <div role="status">
+                    <div class="flex items-center space-x-1">
+                        <div id="statusDot" class="w-3 h-3 rounded-full bg-slate-400" title="Loading..."></div>
+                        <span id="statusText" class="text-xs text-gray-500 dark:text-gray-400" aria-live="polite">Loading...</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- New Chat Button and Theme Toggle -->
+            <div class="flex items-center gap-2">
+                <button id="themeToggle" class="px-3 py-2 text-sm rounded-md border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition font-medium" aria-pressed="false">
+                    System
+                </button>
+                <button id="newChatBtn" class="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition font-medium">
+                    New Chat
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Provider Status Banner -->
+    <div id="providerBanner" class="hidden mx-auto max-w-[1024px] px-4 py-2 mt-2 rounded-md border text-sm flex items-start justify-between gap-3 bg-amber-50 border-amber-200 text-amber-800 dark:bg-neutral-900 dark:border-neutral-800 dark:text-amber-300">
+        <div role="status" class="flex items-center gap-2"><span class="inline-block w-2 h-2 rounded-full bg-amber-500"></span><span id="providerBannerText">Provider issue detected</span></div>
+        <div class="flex items-center gap-2">
+          <button id="providerRetryBtn" class="text-xs px-2 py-1 rounded border border-amber-300 hover:bg-amber-100 dark:border-neutral-700 dark:hover:bg-neutral-800 transition">Retry</button>
+          <button id="providerBannerClose" class="text-xs px-2 py-1 rounded border border-transparent hover:bg-neutral-200 dark:hover:bg-neutral-800 transition" aria-label="Close banner">Close</button>
+        </div>
+      </div>
+
+    <!-- Main Grid Layout -->
+    <main class="container mx-auto max-w-[1024px] grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-0">
+        <!-- Sidebar -->
+        <aside role="complementary" class="hidden lg:block h-[calc(100vh-64px)] sticky top-[64px] border-r border-neutral-200 dark:border-neutral-800 overflow-y-auto">
+            <div class="p-4">
+                <h2 class="font-medium text-gray-700 dark:text-gray-300 mb-2">Conversations</h2>
+                <label for="convFilter" class="sr-only">Filter conversations</label>
+                <input id="convFilter" type="text" placeholder="Filter conversations…" class="w-full px-3 py-2 rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 focus:ring-2 focus:ring-indigo-500">
+                <div id="convListContainer" role="listbox" aria-label="Conversations" class="mt-2"></div>
+            </div>
+        </aside>
+
+        <!-- Main Chat Column -->
+        <div role="main" class="flex flex-col min-h-[calc(100vh-64px)]">
+            <!-- Chat content area - place existing content here -->
+            <div class="flex-1">
+                <div class="max-w-4xl mx-auto">
+                    <!-- Header -->
+                    <header class="text-center mb-12 hidden"> <!-- Hidden since we have sticky header -->
+                        <h1 class="text-4xl font-bold text-gray-900 mb-2">MAF.InsightStreamer</h1>
+                        <p class="text-gray-600">AI-Powered Content Analysis</p>
+                    </header>
+                    
+                    
+                    <!-- Tab Navigation -->
+                    <div class="bg-white shadow-md rounded-lg p-2 mb-8">
+                        <div class="flex">
                             <button
-                                id="sendButton"
-                                onclick="sendQuestion()"
-                                class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition font-medium"
+                                id="youtubeTab"
+                                onclick="switchTab('youtube')"
+                                class="flex-1 py-2 px-4 rounded-lg font-medium transition bg-blue-600 text-white"
                             >
-                                Send
+                                YouTube Analysis
+                            </button>
+                            <button
+                                id="documentTab"
+                                onclick="switchTab('document')"
+                                class="flex-1 py-2 px-4 rounded-lg font-medium transition text-gray-700 hover:bg-gray-100"
+                            >
+                                Document Analysis
                             </button>
                         </div>
                     </div>
+
+                    <!-- YouTube Input Section -->
+                    <div id="youtubeSection" class="bg-white shadow-md rounded-lg p-6 mb-8">
+                        <label for="videoUrl" class="block text-sm font-medium text-gray-700 mb-2">
+                            YouTube Video URL
+                        </label>
+                        <div class="flex gap-4">
+                            <input
+                                type="text"
+                                id="videoUrl"
+                                placeholder="https://www.youtube.com/watch?v=..."
+                                class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                            <button
+                                onclick="analyzeVideo()"
+                                class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition font-medium"
+                            >
+                                Analyze
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Document Upload Section -->
+                    <div id="documentSection" class="hidden bg-white shadow-md rounded-lg p-6 mb-8">
+                        <label for="documentFile" class="block text-sm font-medium text-gray-700 mb-2">
+                            Upload Document (PDF, Word, Markdown, or Plain Text)
+                        </label>
+                        <div class="mb-4">
+                            <input
+                                type="file"
+                                id="documentFile"
+                                accept=".pdf,.docx,.md,.txt"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                            />
+                            <p class="text-xs text-gray-500 mt-2">Maximum file size: 10MB. Supported formats: PDF, DOCX, MD, TXT</p>
+                        </div>
+                        <div class="flex gap-4">
+                            <button
+                                onclick="analyzeDocument()"
+                                class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition font-medium"
+                            >
+                                Analyze Document
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Loading Spinner -->
+                    <div id="loading" class="hidden text-center py-8">
+                        <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                        <p class="text-gray-600 mt-4" id="loadingText">Analyzing content...</p>
+                    </div>
+                    
+                    <!-- Error Message -->
+                    <div id="error" class="hidden bg-red-50 border border-red-200 rounded-lg p-4 mb-8">
+                        <p class="text-red-800" id="errorMessage"></p>
+                    </div>
+                    
+                    <!-- Results Section -->
+                    <div id="results" class="hidden bg-white shadow-lg rounded-lg p-6">
+                        <h2 class="text-2xl font-bold text-gray-900 mb-4" id="resultsTitle">Analysis Results</h2>
+                        
+                        <!-- Document Metadata -->
+                        <div id="documentMetadata" class="hidden mb-6 p-4 bg-gray-50 rounded-lg">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-2">Document Information</h3>
+                            <div class="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                    <span class="font-medium text-gray-600">File Name:</span>
+                                    <span id="metaFileName" class="text-gray-800 ml-2"></span>
+                                </div>
+                                <div>
+                                    <span class="font-medium text-gray-600">File Type:</span>
+                                    <span id="metaFileType" class="text-gray-800 ml-2"></span>
+                                </div>
+                                <div>
+                                    <span class="font-medium text-gray-600">File Size:</span>
+                                    <span id="metaFileSize" class="text-gray-800 ml-2"></span>
+                                </div>
+                                <div>
+                                    <span class="font-medium text-gray-600">Page Count:</span>
+                                    <span id="metaPageCount" class="text-gray-800 ml-2"></span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Analysis Content -->
+                        <div id="resultsContent" class="text-gray-700"></div>
+                        
+                        <!-- Q&A Section (Hidden by default) -->
+                        <div id="qaSection" class="hidden mt-6 pt-6 border-t border-gray-200">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-xl font-semibold text-gray-800">Ask Questions About This Document</h3>
+                                <button
+                                    id="newConversationBtn"
+                                    onclick="startNewConversation()"
+                                    class="text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded-md transition"
+                                >
+                                    Start New Conversation
+                                </button>
+                            </div>
+                            
+                            <!-- Chat Container -->
+                            <div id="chatContainer" class="border border-gray-300 rounded-lg mb-4">
+                                <!-- Messages Container -->
+                                <section id="chatLog" role="log" aria-live="polite" tabindex="-1" class="space-y-4 p-4">
+                                    <!-- Messages will be inserted here -->
+                                    <div id="welcomeMessage" class="text-center text-gray-500 py-8">
+                                        Ask a question about the document to get started
+                                    </div>
+                                </section>
+                                
+                                <!-- Input Container -->
+                                <div class="p-3 border-t border-gray-300 bg-white rounded-b-lg">
+                                    <div class="flex gap-2">
+                                        <textarea
+                                            id="questionInput"
+                                            placeholder="Type your question here..."
+                                            class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                                            rows="1"
+                                            onkeypress="handleComposerKeyPress(event)"
+                                        ></textarea>
+                                        <button
+                                            id="sendButton"
+                                            onclick="sendQuestion()"
+                                            class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition font-medium"
+                                        >
+                                            Send
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Typing Indicator (Hidden by default) -->
+                            <div id="typingIndicator" class="hidden flex items-center text-gray-500 mb-2">
+                                <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                                <span>AI is thinking...</span>
+                            </div>
+                            
+                            <!-- Error Message for Q&A (Hidden by default) -->
+                            <div id="qaError" class="hidden bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+                                <p class="text-red-800 text-sm" id="qaErrorMessage"></p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Sticky Bottom Composer -->
+    <div class="sticky bottom-0 backdrop-blur border-t bg-white/70 dark:bg-neutral-900/60">
+        <div class="container mx-auto max-w-[1024px] px-4 py-3">
+            <!-- Quick chips and mode toggles row -->
+            <div class="flex items-center gap-2 mb-2">
+                <!-- Quick chips -->
+                <button type="button" class="quick-chip px-2 py-1 text-xs bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700 transition" data-chip="Summarize">Summarize</button>
+                <button type="button" class="quick-chip px-2 py-1 text-xs bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700 transition" data-chip="Fix grammar">Fix grammar</button>
+                <button type="button" class="quick-chip px-2 py-1 text-xs bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700 transition" data-chip="Make concise">Make concise</button>
                 
-                <!-- Typing Indicator (Hidden by default) -->
-                <div id="typingIndicator" class="hidden flex items-center text-gray-500 mb-2">
-                    <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
-                    <span>AI is thinking...</span>
+                <!-- Mode toggles -->
+                <div class="ml-auto flex gap-1">
+                    <button type="button" id="defaultModeBtn" class="mode-toggle px-2 py-1 text-xs bg-blue-600 text-white rounded-md" data-mode="default">Default</button>
+                    <button type="button" id="systemModeBtn" class="mode-toggle px-2 py-1 text-xs bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 rounded-md" data-mode="system">System mode</button>
                 </div>
-                
-                <!-- Error Message for Q&A (Hidden by default) -->
-                <div id="qaError" class="hidden bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-                    <p class="text-red-800 text-sm" id="qaErrorMessage"></p>
+            </div>
+            
+            <textarea id="composerInput" class="w-full resize-none rounded-xl border-neutral-300 dark:border-neutral-700 focus:ring-2 focus:ring-indigo-500" rows="1" placeholder="Type your message here..." onkeypress="handleComposerKeyPress(event)"></textarea>
+            
+            <!-- Attachments area -->
+            <div id="attachmentPills" class="flex flex-wrap gap-2 mt-2"></div>
+            
+            <!-- Hidden file input -->
+            <input type="file" id="composerFileInput" class="hidden" multiple>
+            
+            <!-- Slash commands menu -->
+            <div id="slashMenu" class="hidden absolute z-50 w-64 max-h-60 overflow-y-auto rounded-md border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 shadow-lg" role="menu" aria-label="Command menu">
+                <div class="p-1">
+                    <!-- Commands will be inserted here dynamically -->
+                </div>
+            </div>
+            
+            <div id="composerStatusRow" class="flex items-center justify-between mt-2">
+                <div id="composerThinking" class="hidden text-xs text-neutral-500 dark:text-neutral-400 flex items-center gap-2">
+                    <span class="inline-flex h-2 w-2 rounded-full bg-indigo-500 animate-pulse"></span> Thinking…
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="attachFilesBtn" type="button" class="text-xs px-2 py-1 rounded border border-neutral-200 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition" aria-label="Attach files">Attach files</button>
+                    <button id="stopBtn" type="button" class="hidden text-xs px-2 py-1 rounded border border-neutral-200 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition" aria-label="Stop generating">Stop</button>
                 </div>
             </div>
         </div>
     </div>
+    
+    <!-- Prism.js CDN -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1/themes/prism.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-core.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1/plugins/autoloader/prism-autoloader.min.js"></script>
+    <script>
+        Prism.plugins.autoloader.languages_path = 'https://cdn.jsdelivr.net/npm/prismjs@1/components/';
+    </script>
+    
+    <!-- Message component renderer -->
+    <script src="/js/ui/messages.js"></script>
+    <!-- Markdown parser utility -->
+    <script src="/js/ui/markdown.js"></script>
+    <!-- Streaming controller -->
+    <script src="/js/ui/streaming.js"></script>
+    <!-- Composer controller -->
+    <script src="/js/ui/composer.js"></script>
+    <!-- Error handling utilities -->
+    <script src="/js/ui/errors.js"></script>
+    <!-- Theme controller -->
+    <script src="/js/ui/theme.js"></script>
     
     <script>
         // Global variables for conversational Q&A
@@ -345,8 +467,8 @@
         function displayVideoResults(result) {
             document.getElementById('resultsTitle').textContent = 'Video Analysis Results';
             document.getElementById('documentMetadata').classList.add('hidden');
-            // Use marked.js to render markdown content
-            const renderedHtml = marked.parse(result);
+            // Use markdown utility to render markdown content
+            const renderedHtml = window.Markdown.useInternalParser(result);
             document.getElementById('resultsContent').innerHTML = renderedHtml;
             document.getElementById('results').classList.remove('hidden');
         }
@@ -370,8 +492,8 @@
             
             // Summary section
             if (result.summary) {
-                // Use marked.js to render markdown content
-                const renderedSummary = marked.parse(result.summary);
+                // Use markdown utility to render markdown content
+                const renderedSummary = window.Markdown.useInternalParser(result.summary);
                 contentHtml += `
                     <div class="mb-6">
                         <h3 class="text-lg font-semibold text-gray-800 mb-2">Summary</h3>
@@ -387,8 +509,8 @@
                         <h3 class="text-lg font-semibold text-gray-800 mb-2">Key Points</h3>
                         <ul class="list-disc list-inside space-y-2">
                             ${result.keyPoints.map(point => {
-                                // Use marked.js to render markdown content for each point
-                                const renderedPoint = marked.parse(point);
+                                // Use markdown utility to render markdown content for each point
+                                const renderedPoint = window.Markdown.useInternalParser(point);
                                 return `<li class="text-gray-700">${renderedPoint}</li>`;
                             }).join('')}
                         </ul>
@@ -441,147 +563,89 @@
             document.getElementById('qaSection').classList.remove('hidden');
             // Scroll to the Q&A section
             document.getElementById('qaSection').scrollIntoView({ behavior: 'smooth' });
-            // Focus on the input field
-            document.getElementById('questionInput').focus();
+            // Focus on the composer input at the bottom
+            document.getElementById('composerInput').focus();
         }
         
         // Start a new conversation (clear threadId)
         function startNewConversation() {
             currentThreadId = null;
             // Clear the chat history
-            document.getElementById('messagesContainer').innerHTML = `
-                <div id="welcomeMessage" class="text-center text-gray-500 py-8">
-                    Ask a question about the document to get started
-                </div>
-            `;
+            const chatLog = document.getElementById('chatLog');
+            if (chatLog) {
+                chatLog.innerHTML = `
+                    <div id="welcomeMessage" class="text-center text-gray-500 py-8">
+                        Ask a question about the document to get started
+                    </div>
+                `;
+            }
             // Hide any error messages
             document.getElementById('qaError').classList.add('hidden');
-            // Focus on the input field
-            document.getElementById('questionInput').focus();
+            // Focus on the composer input at the bottom
+            document.getElementById('composerInput').focus();
         }
         
-        // Handle Enter key in the question input
-        function handleQuestionKeyPress(event) {
+        // Handle Enter key in the composer input
+        function handleComposerKeyPress(event) {
             if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault();
                 sendQuestion();
             }
         }
         
-        // Send a question to the API
-        async function sendQuestion() {
-            const questionInput = document.getElementById('questionInput');
+        // Send a question using the streaming controller
+        function sendQuestion() {
+            const questionInput = document.getElementById('composerInput');
             const question = questionInput.value.trim();
             
             if (!question) {
                 return;
             }
             
-            // Clear the input field
+            // Use the streaming controller to handle the request
+            window.Streaming.start(question);
+            
+            // Clear the input field after starting the stream
             questionInput.value = '';
-            
-            // Hide welcome message if it's the first question
-            const welcomeMessage = document.getElementById('welcomeMessage');
-            if (welcomeMessage) {
-                welcomeMessage.remove();
-            }
-            
-            // Show typing indicator
-            document.getElementById('typingIndicator').classList.remove('hidden');
-            
-            // Hide any previous error messages
-            document.getElementById('qaError').classList.add('hidden');
-            
-            try {
-                const response = await fetch('/api/document/ask', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        sessionId: sessionId,
-                        question: question,
-                        threadId: currentThreadId
-                    })
-                });
-                
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(errorText || 'Failed to get answer');
-                }
-                
-                const result = await response.json();
-                
-                // Store threadId for subsequent questions
-                currentThreadId = result.threadId;
-                
-                // Render conversation history
-                renderConversation(result.conversationHistory);
-                
-            } catch (error) {
-                document.getElementById('qaErrorMessage').textContent = error.message;
-                document.getElementById('qaError').classList.remove('hidden');
-            } finally {
-                // Hide typing indicator
-                document.getElementById('typingIndicator').classList.add('hidden');
-                // Focus back to input field
-                questionInput.focus();
-            }
         }
         
-        // Render the conversation history
-        function renderConversation(conversationHistory) {
-            const messagesContainer = document.getElementById('messagesContainer');
-            messagesContainer.innerHTML = '';
-            
-            conversationHistory.forEach(message => {
-                const messageElement = createMessageElement(message);
-                messagesContainer.appendChild(messageElement);
-            });
-            
-            // Auto-scroll to the latest message
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        }
-        
-        // Create a message element for the chat
-        function createMessageElement(message) {
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `mb-4 ${message.role === 0 ? 'text-right' : 'text-left'}`; // 0 = User, 1 = Assistant
-            
-            const messageContent = document.createElement('div');
-            messageContent.className = `inline-block max-w-3/4 px-4 py-2 rounded-lg ${
-                message.role === 0
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-200 text-gray-800'
-            }`;
-            
-            // Use marked.js to render markdown content for assistant messages
-            const renderedContent = message.role === 1 ? marked.parse(message.content) : message.content;
-            messageContent.innerHTML = renderedContent;
-            
-            messageDiv.appendChild(messageContent);
-            
-            // Add chunk references if available
-            if (message.chunkReferences && message.chunkReferences.length > 0) {
-                const chunkRefsDiv = document.createElement('div');
-                chunkRefsDiv.className = 'mt-2 text-xs';
-                
-                if (message.role === 0) {
-                    chunkRefsDiv.className += ' text-right mr-2';
-                } else {
-                    chunkRefsDiv.className += ' text-left ml-2';
-                }
-                
-                const chunkBadge = document.createElement('span');
-                chunkBadge.className = 'inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs';
-                chunkBadge.textContent = `Based on sections: ${message.chunkReferences.join(', ')}`;
-                
-                chunkRefsDiv.appendChild(chunkBadge);
-                messageDiv.appendChild(chunkRefsDiv);
-            }
-            
-            return messageDiv;
-        }
     </script>
+    
+    <script>
+        // Add event listener for the new chat button
+        document.addEventListener('DOMContentLoaded', function() {
+            const newChatBtn = document.getElementById('newChatBtn');
+            if (newChatBtn) {
+                newChatBtn.addEventListener('click', function() {
+                    // Dispatch a custom event for new chat
+                    window.dispatchEvent(new CustomEvent('ui:new-chat'));
+                });
+            }
+            
+            // Initialize the streaming controller
+            if (window.Streaming) {
+                window.Streaming.init();
+            }
+        });
+    </script>
+    
+    <!-- Diagnostics Modal -->
+    <div id="diagnosticsOverlay" class="hidden fixed inset-0 z-50 bg-black/40"></div>
+    <div id="diagnosticsModal" role="dialog" aria-modal="true" aria-labelledby="diagTitle" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="w-full max-w-lg rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-lg">
+          <div class="p-4 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between">
+            <h2 id="diagTitle" class="text-base font-semibold">Model Discovery Diagnostics</h2>
+            <button id="diagClose" class="px-2 py-1 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800" aria-label="Close diagnostics">✕</button>
+          </div>
+          <div class="p-4 space-y-3">
+            <p id="diagMessage" class="text-sm text-neutral-700 dark:text-neutral-300"></p>
+            <pre id="diagDetails" class="text-xs bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded p-3 overflow-auto max-h-60"></pre>
+            <div class="flex items-center gap-2">
+              <button id="diagRetry" class="text-xs px-3 py-2 rounded border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition">Retry</button>
+              <span id="diagBackoff" class="text-xs text-neutral-500"></span>
+            </div>
+          </div>
+        </div>
+      </div>
 </body>
 </html>

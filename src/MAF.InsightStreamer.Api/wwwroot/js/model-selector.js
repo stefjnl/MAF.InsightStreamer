@@ -3,65 +3,365 @@ class ModelSelector {
     constructor() {
         this.currentProvider = null;
         this.currentModel = null;
+        this.providerCache = null;
+        this.modelsCache = {};
+        this.cacheExpiryTime = 5 * 60 * 1000; // 5 minutes in milliseconds
         this.init();
     }
 
     async init() {
+        // Load the last selected provider from localStorage if available
+        const savedProvider = localStorage.getItem('is:provider');
+        if (savedProvider) {
+            this.currentProvider = savedProvider;
+        }
+        
+        // Prefetch providers and models on load
+        this.prefetchData();
+        
         await this.loadProviders();
         this.setupEventListeners();
     }
 
-    async loadProviders() {
-        const response = await fetch('/api/model/providers');
-        const data = await response.json();
-        this.renderProviderDropdown(data.providers);
-        this.currentProvider = data.current;
+    // Prefetch providers and models on load
+    async prefetchData() {
+        // Prefetch providers
+        try {
+            const cachedProviders = this.getCachedProviders();
+            if (cachedProviders) {
+                // Use cached data immediately
+                this.renderProviderDropdown(cachedProviders.providers);
+                
+                // Update the current provider selection
+                const savedProvider = localStorage.getItem('is:provider');
+                if (savedProvider) {
+                    const providerSelect = document.getElementById('providerSelect');
+                    if (providerSelect) {
+                        providerSelect.value = savedProvider;
+                    }
+                }
+                
+                // Then refresh in background to keep cache fresh
+                this.refreshProvidersCache();
+            } else {
+                this.refreshProvidersCache();
+            }
+        } catch (error) {
+            console.warn('Failed to prefetch providers:', error);
+            // Fall back to normal loading
+            await this.loadProviders();
+        }
+
+        // If there's a saved provider, prefetch its models too
+        const savedProvider = localStorage.getItem('is:provider');
+        if (savedProvider) {
+            try {
+                const cachedModels = this.getCachedModels(savedProvider);
+                if (cachedModels) {
+                    // Use cached models immediately
+                    this.renderModelDropdown(cachedModels);
+                    
+                    // Refresh in background to keep cache fresh
+                    this.refreshModelsCache(savedProvider);
+                } else {
+                    this.refreshModelsCache(savedProvider);
+                }
+            } catch (error) {
+                console.warn('Failed to prefetch models:', error);
+            }
+        }
     }
 
-    async discoverModels(provider) {
-        this.showLoading();
+    // Get cached providers from memory or localStorage
+    getCachedProviders() {
+        try {
+            // Check memory cache first
+            if (this.providerCache) {
+                const now = Date.now();
+                if (now - this.providerCache.timestamp < this.cacheExpiryTime) {
+                    return this.providerCache.data;
+                }
+            }
+
+            // Check localStorage cache
+            const stored = localStorage.getItem('is:providersCache');
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                const now = Date.now();
+                if (now - parsed.timestamp < this.cacheExpiryTime) {
+                    // Update memory cache
+                    this.providerCache = parsed;
+                    return parsed.data;
+                } else {
+                    // Cache expired, remove from localStorage
+                    localStorage.removeItem('is:providersCache');
+                }
+            }
+        } catch (error) {
+            console.warn('Error reading providers cache:', error);
+        }
+        return null;
+    }
+
+    // Refresh providers cache from network
+    async refreshProvidersCache() {
+        try {
+            const response = await fetch('/api/model/providers');
+            if (!response.ok) {
+                throw new Error(`Failed to load providers: ${response.status} ${response.statusText}`);
+            }
+            const data = await response.json();
+            
+            // Update memory cache
+            this.providerCache = {
+                data: data,
+                timestamp: Date.now()
+            };
+            
+            // Update localStorage cache
+            localStorage.setItem('is:providersCache', JSON.stringify({
+                data: data,
+                timestamp: Date.now()
+            }));
+            
+            // Only render if we haven't already rendered from cache
+            const providerSelect = document.getElementById('providerSelect');
+            if (providerSelect && providerSelect.options.length === 0) {
+                this.renderProviderDropdown(data.providers);
+                
+                // Update the current provider selection
+                const savedProvider = localStorage.getItem('is:provider');
+                if (savedProvider) {
+                    providerSelect.value = savedProvider;
+                }
+            }
+            
+            return data;
+        } catch (error) {
+            console.warn('Failed to refresh providers cache:', error);
+            return null;
+        }
+    }
+
+    // Get cached models for a provider from memory or localStorage
+    getCachedModels(provider) {
+        try {
+            // Check memory cache first
+            if (this.modelsCache[provider]) {
+                const now = Date.now();
+                if (now - this.modelsCache[provider].timestamp < this.cacheExpiryTime) {
+                    return this.modelsCache[provider].data;
+                }
+            }
+
+            // Check localStorage cache
+            const cacheKey = `is:modelsCache:${provider}`;
+            const stored = localStorage.getItem(cacheKey);
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                const now = Date.now();
+                if (now - parsed.timestamp < this.cacheExpiryTime) {
+                    // Update memory cache
+                    this.modelsCache[provider] = parsed;
+                    return parsed.data;
+                } else {
+                    // Cache expired, remove from localStorage
+                    localStorage.removeItem(cacheKey);
+                }
+            }
+        } catch (error) {
+            console.warn('Error reading models cache:', error);
+        }
+        return null;
+    }
+
+    // Refresh models cache for a provider from network
+    async refreshModelsCache(provider) {
         try {
             const response = await fetch(`/api/model/discover/${provider}`);
             if (!response.ok) {
-                throw new Error(`Provider unavailable: ${response.statusText}`);
+                // Don't throw error here as it might be expected (like OpenRouter)
+                if (response.status === 400) {
+                    const errorText = await response.text();
+                    if (errorText.includes('OpenRouter models cannot be discovered locally')) {
+                        // For OpenRouter, we can't cache models but that's expected
+                        return [];
+                    }
+                }
+                return [];
             }
             const models = await response.json();
-            this.renderModelDropdown(models);
+            
+            // Update memory cache
+            this.modelsCache[provider] = {
+                data: models,
+                timestamp: Date.now()
+            };
+            
+            // Update localStorage cache
+            const cacheKey = `is:modelsCache:${provider}`;
+            localStorage.setItem(cacheKey, JSON.stringify({
+                data: models,
+                timestamp: Date.now()
+            }));
+            
+            return models;
         } catch (error) {
-            this.showError(`Cannot discover models: ${error.message}`);
-        } finally {
-            this.hideLoading();
+            console.warn('Failed to refresh models cache:', error);
+            return null;
+        }
+    }
+
+    async loadProviders() {
+        try {
+            const cachedProviders = this.getCachedProviders();
+            if (cachedProviders) {
+                this.renderProviderDropdown(cachedProviders.providers);
+                this.currentProvider = cachedProviders.current;
+                
+                // If we have a saved provider, select it
+                const savedProvider = localStorage.getItem('is:provider');
+                if (savedProvider) {
+                    const providerSelect = document.getElementById('providerSelect');
+                    if (providerSelect) {
+                        providerSelect.value = savedProvider;
+                    }
+                }
+                
+                // Refresh cache in background
+                this.refreshProvidersCache();
+            } else {
+                const response = await fetch('/api/model/providers');
+                if (!response.ok) {
+                    this.updateStatus('Provider unavailable', 'unavailable');
+                    throw new Error(`Failed to load providers: ${response.status} ${response.statusText}`);
+                }
+                const data = await response.json();
+                this.renderProviderDropdown(data.providers);
+                this.currentProvider = data.current;
+                
+                // If we have a saved provider, select it
+                const savedProvider = localStorage.getItem('is:provider');
+                if (savedProvider) {
+                    const providerSelect = document.getElementById('providerSelect');
+                    if (providerSelect) {
+                        providerSelect.value = savedProvider;
+                    }
+                }
+            }
+        } catch (error) {
+            this.updateStatus('Provider unavailable', 'unavailable');
+            ToastUtil.show(`Failed to load providers: ${error.message}`, 'error');
+        }
+    }
+
+    async discoverModels(provider) {
+        // Check if we have cached models first
+        const cachedModels = this.getCachedModels(provider);
+        if (cachedModels !== null) {
+            this.renderModelDropdown(cachedModels);
+            document.getElementById('modelSelect').disabled = false;
+            this.updateStatus('Connected', 'connected');
+            
+            // Refresh cache in background to keep it fresh
+            this.refreshModelsCache(provider);
+            return;
+        }
+
+        // Update status to loading
+        this.updateStatus('Loading...', 'loading');
+        document.getElementById('modelSelect').disabled = true;
+        
+        try {
+            const response = await fetch(`/api/model/discover/${provider}`);
+            if (!response.ok) {
+                if (response.status === 400) {
+                    const errorText = await response.text();
+                    if (errorText.includes('OpenRouter models cannot be discovered locally')) {
+                        // For OpenRouter, just enable the model select so user can manually enter a model name
+                        this.renderModelDropdown([]);
+                        document.getElementById('modelSelect').disabled = false;
+                        this.updateStatus('Connected', 'connected');
+                        ToastUtil.show('OpenRouter models cannot be discovered locally. Please enter a model name.', 'info');
+                    } else {
+                        throw new Error(errorText);
+                    }
+                } else if (response.status === 503) {
+                    const errorText = await response.text();
+                    throw new Error(errorText);
+                } else {
+                    throw new Error(`Provider unavailable: ${response.status} ${response.statusText}`);
+                }
+                return;
+            }
+            const models = await response.json();
+            
+            // Cache the models
+            this.modelsCache[provider] = {
+                data: models,
+                timestamp: Date.now()
+            };
+            
+            const cacheKey = `is:modelsCache:${provider}`;
+            localStorage.setItem(cacheKey, JSON.stringify({
+                data: models,
+                timestamp: Date.now()
+            }));
+            
+            this.renderModelDropdown(models);
+            document.getElementById('modelSelect').disabled = false;
+            this.updateStatus('Connected', 'connected');
+        } catch (error) {
+            this.updateStatus('Provider unavailable', 'unavailable');
+            document.getElementById('modelSelect').disabled = true;
+            ToastUtil.show(`Cannot discover models: ${error.message}`, 'error');
         }
     }
 
     async switchModel(provider, model) {
-        const response = await fetch('/api/model/switch', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ provider, model })
-        });
+        try {
+            const response = await fetch('/api/model/switch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ provider, model })
+            });
 
-        if (response.ok) {
-            this.currentProvider = provider;
-            this.currentModel = model;
-            this.showSuccess(`Switched to ${model}`);
-        } else {
-            this.showError('Failed to switch model');
+            if (response.ok) {
+                this.currentProvider = provider;
+                this.currentModel = model;
+                this.updateStatus('Connected', 'connected');
+                ToastUtil.show(`Switched to ${model}`, 'success');
+                
+                // Save the selected model in localStorage
+                localStorage.setItem('is:model', model);
+            } else {
+                const errorText = await response.text();
+                this.updateStatus('Provider unavailable', 'unavailable');
+                ToastUtil.show(`Failed to switch model: ${errorText}`, 'error');
+            }
+        } catch (error) {
+            this.updateStatus('Provider unavailable', 'unavailable');
+            ToastUtil.show(`Error switching model: ${error.message}`, 'error');
         }
     }
 
     renderProviderDropdown(providers) {
-        const select = document.getElementById('provider-select');
+        const select = document.getElementById('providerSelect');
         select.innerHTML = providers
             .map(p => `<option value="${p.value}">${p.name}</option>`)
             .join('');
     }
 
     renderModelDropdown(models) {
-        const select = document.getElementById('model-select');
-        select.innerHTML = models
-            .map(m => `<option value="${m.id}">${m.name} (${this.formatSize(m.sizeBytes)})</option>`)
-            .join('');
+        const select = document.getElementById('modelSelect');
+        if (models && models.length > 0) {
+            select.innerHTML = models
+                .map(m => `<option value="${m.id}">${m.name || m.id} ${m.sizeBytes ? `(${this.formatSize(m.sizeBytes)})` : ''}</option>`)
+                .join('');
+        } else {
+            // For providers like OpenRouter where we can't discover models, allow manual entry
+            select.innerHTML = `<option value="">Enter model name</option>`;
+        }
     }
 
     formatSize(bytes) {
@@ -70,24 +370,70 @@ class ModelSelector {
         return `${gb.toFixed(1)} GB`;
     }
 
+    updateStatus(text, statusType) {
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const statusDotTitle = document.getElementById('statusDot');
+
+        // Reset classes
+        statusDot.className = 'w-3 h-3 rounded-full';
+        statusText.className = 'text-xs text-gray-500 dark:text-gray-400';
+        statusDotTitle.title = text;
+        statusText.textContent = text;
+
+        // Apply status-specific classes
+        switch (statusType) {
+            case 'connected':
+                statusDot.classList.add('bg-emerald-500');
+                statusText.classList.add('text-emerald-600', 'dark:text-emerald-400');
+                statusDotTitle.title = 'Connected';
+                break;
+            case 'rate-limited':
+                statusDot.classList.add('bg-amber-500');
+                statusText.classList.add('text-amber-600', 'dark:text-amber-400');
+                statusDotTitle.title = 'Rate limited';
+                break;
+            case 'unavailable':
+                statusDot.classList.add('bg-rose-500');
+                statusText.classList.add('text-rose-600', 'dark:text-rose-400');
+                statusDotTitle.title = 'Provider unavailable';
+                break;
+            case 'loading':
+                statusDot.classList.add('bg-slate-400');
+                statusText.classList.add('text-slate-500', 'dark:text-slate-400');
+                statusDotTitle.title = 'Loading...';
+                break;
+            default:
+                statusDot.classList.add('bg-slate-400');
+                statusText.classList.add('text-slate-500', 'dark:text-slate-400');
+                statusDotTitle.title = 'Unknown status';
+        }
+    }
+
     setupEventListeners() {
-        const providerSelect = document.getElementById('provider-select');
-        const modelSelect = document.getElementById('model-select');
-        const switchButton = document.getElementById('switch-model-btn');
+        const providerSelect = document.getElementById('providerSelect');
+        const modelSelect = document.getElementById('modelSelect');
 
+        // Handle provider change
         providerSelect.addEventListener('change', (e) => {
-            this.discoverModels(e.target.value);
-        });
-
-        switchButton.addEventListener('click', () => {
-            const provider = document.getElementById('provider-select').value;
-            const model = document.getElementById('model-select').value;
-            if (provider && model) {
-                this.switchModel(provider, model);
+            const selectedValue = e.target.value;
+            if (selectedValue) {
+                // Save the selected provider to localStorage
+                localStorage.setItem('is:provider', selectedValue);
+                this.discoverModels(selectedValue);
             }
         });
 
-        // Load models for the initially selected provider
+        // Handle model change
+        modelSelect.addEventListener('change', (e) => {
+            const selectedProvider = providerSelect.value;
+            const selectedModel = e.target.value;
+            if (selectedProvider && selectedModel) {
+                this.switchModel(selectedProvider, selectedModel);
+            }
+        });
+
+        // Load models for the initially selected provider if it exists
         if (providerSelect.value) {
             this.discoverModels(providerSelect.value);
         }

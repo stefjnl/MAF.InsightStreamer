@@ -1,0 +1,78 @@
+/* Design tokens for theming */
+:root {
+  /* Colors - Light theme (default) */
+  --bg: #ffffff;
+  --surface: #f8fafc;
+  --text: #0f172a;
+  --muted: #64748b;
+  --border: #e2e8f0;
+  --accent: #3b82f6;
+  --accent-contrast: #ffffff;
+  
+  /* Radii */
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+/* Dark theme override (OS preference) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f172a;
+    --surface: #1e293b;
+    --text: #f8fafc;
+    --muted: #94a3b8;
+    --border: #334155;
+    --accent: #60a5fa;
+    --accent-contrast: #0f172a;
+  }
+}
+
+/* Explicit theme overrides (user preference takes precedence) */
+[data-theme="light"] {
+  --bg: #ffffff;
+  --surface: #f8fafc;
+  --text: #0f172a;
+  --muted: #64748b;
+  --border: #e2e8f0;
+  --accent: #3b82f6;
+  --accent-contrast: #ffffff;
+}
+
+[data-theme="dark"] {
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --text: #f8fafc;
+  --muted: #94a3b8;
+  --border: #334155;
+  --accent: #60a5fa;
+  --accent-contrast: #0f172a;
+}
+
+/* Base mapping for quick visual effect */
+html, body {
+  background-color: var(--bg);
+  color: var(--text);
+}
+
+/* Utility class for surface elements */
+.token-surface {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  
+  .reduce-motion {
+    transition: none !important;
+    animation: none !important;
+  }
+}
