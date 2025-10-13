@@ -21,6 +21,41 @@ class LayoutController {
         
         // Add event listeners
         this.hamburgerBtn?.addEventListener('click', () => this.toggleDrawer());
+        
+        // Add mobile header button handlers
+        const mobileNewChatBtn = document.getElementById('mobileNewChatBtn');
+        const mobileThemeToggle = document.getElementById('mobileThemeToggle');
+        const mobileProviderSelect = document.getElementById('mobileProviderSelect');
+        const mobileModelSelect = document.getElementById('mobileModelSelect');
+        
+        mobileNewChatBtn?.addEventListener('click', () => {
+            window.dispatchEvent(new CustomEvent('ui:new-chat'));
+            this.closeDrawer();
+        });
+        
+        mobileThemeToggle?.addEventListener('click', () => {
+            const themeBtn = document.getElementById('themeToggle');
+            if (themeBtn) {
+                themeBtn.click(); // Trigger existing theme toggle
+            }
+        });
+        
+        // Sync mobile and desktop provider/model selections
+        mobileProviderSelect?.addEventListener('change', (e) => {
+            const desktopSelect = document.getElementById('providerSelect');
+            if (desktopSelect && desktopSelect.value !== e.target.value) {
+                desktopSelect.value = e.target.value;
+                desktopSelect.dispatchEvent(new Event('change'));
+            }
+        });
+        
+        mobileModelSelect?.addEventListener('change', (e) => {
+            const desktopSelect = document.getElementById('modelSelect');
+            if (desktopSelect && desktopSelect.value !== e.target.value) {
+                desktopSelect.value = e.target.value;
+                desktopSelect.dispatchEvent(new Event('change'));
+            }
+        });
         this.closeBtn?.addEventListener('click', () => this.closeDrawer());
         this.scrim?.addEventListener('click', () => this.closeDrawer());
         
