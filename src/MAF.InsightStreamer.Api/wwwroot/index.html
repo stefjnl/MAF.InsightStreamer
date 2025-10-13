@@ -61,7 +61,7 @@
     <script src="/js/ui/conversations.js" defer></script>
 </head>
 
-<body class="light-theme">
+<body class="light-theme chat-ui">
     <!-- Skip to content link for accessibility -->
     <a href="#chatLog"
         class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:bg-white dark:focus:bg-neutral-900 focus:text-neutral-900 dark:focus:text-neutral-100 focus:px-3 focus:py-2 focus:rounded-md">Skip
@@ -169,26 +169,27 @@
         </div>
     </header>
 
-    <!-- Provider Status Banner -->
-    <div id="providerBanner"
-        class="hidden mx-auto max-w-[1024px] px-4 py-2 mt-2 rounded-md border text-sm flex items-start justify-between gap-3 alert-banner"
-        role="alert" aria-live="assertive">
-        <div role="status" class="flex items-center gap-2">
-            <span class="inline-block w-2 h-2 rounded-full bg-amber-500"></span>
-            <span id="providerBannerText">Provider issue detected</span>
+    <div class="chat-hero">
+        <!-- Provider Status Banner -->
+        <div id="providerBanner"
+            class="hidden mx-auto max-w-[1024px] px-4 py-2 mt-6 rounded-md border text-sm flex items-start justify-between gap-3 alert-banner"
+            role="alert" aria-live="assertive">
+            <div role="status" class="flex items-center gap-2">
+                <span class="inline-block w-2 h-2 rounded-full bg-amber-500"></span>
+                <span id="providerBannerText">Provider issue detected</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <button id="providerRetryBtn" class="button-secondary text-xs px-2 py-1"
+                    aria-label="Retry provider connection">Retry</button>
+                <button id="providerSwitchBtn" class="button-secondary text-xs px-2 py-1"
+                    aria-label="Switch to another provider">Switch Provider</button>
+                <button id="providerBannerClose" class="button-secondary text-xs px-2 py-1"
+                    aria-label="Close banner">Close</button>
+            </div>
         </div>
-        <div class="flex items-center gap-2">
-            <button id="providerRetryBtn" class="button-secondary text-xs px-2 py-1"
-                aria-label="Retry provider connection">Retry</button>
-            <button id="providerSwitchBtn" class="button-secondary text-xs px-2 py-1"
-                aria-label="Switch to another provider">Switch Provider</button>
-            <button id="providerBannerClose" class="button-secondary text-xs px-2 py-1"
-                aria-label="Close banner">Close</button>
-        </div>
-    </div>
 
-    <!-- Main Grid Layout -->
-    <main class="container mx-auto max-w-[1024px] px-[var(--gutter-x)] grid grid-responsive gap-4">
+        <!-- Main Grid Layout -->
+        <main class="chat-shell">
         <!-- Sidebar -->
         <aside role="complementary"
             class="sidebar-responsive h-[calc(100vh-64px)] sticky top-[64px] border-r border-neutral-200 dark:border-neutral-800 overflow-y-auto modern-scrollbar lg:static lg:block lg:h-auto lg:border-r lg:!translate-x-0">
@@ -391,10 +392,11 @@
                 </div>
             </div>
         </div>
-    </main>
+        </main>
+    </div>
 
     <!-- Sticky Bottom Composer -->
-    <div class="sticky bottom-0 backdrop-blur border-t bg-white/80 dark:bg-neutral-900/80 hairline surface-alt z-20">
+    <div class="chat-composer sticky bottom-0 backdrop-blur border-t bg-white/80 dark:bg-neutral-900/80 hairline surface-alt z-20">
         <div class="container mx-auto max-w-[1024px] px-[var(--gutter-x)] py-3">
             <!-- Quick chips and mode toggles row -->
             <div class="flex items-center gap-2 mb-2">

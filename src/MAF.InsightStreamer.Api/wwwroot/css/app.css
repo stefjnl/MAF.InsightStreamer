@@ -14,6 +14,7 @@
 @import "components/_dashboard.css";
 @import "components/_controls.css";
 @import "components/_animations.css";
+@import "components/_chat.css";
 
 @import "themes/_light.css";
 @import "themes/_dark.css";

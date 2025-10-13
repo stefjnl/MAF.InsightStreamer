@@ -71,6 +71,12 @@ class LayoutController {
         
         // Initial viewport check
         this.handleViewportChange();
+
+        // Ensure chat UI class is set initially
+        this.applyChatUiClass();
+
+        // Observe theme changes to sync background treatment
+        document.addEventListener('theme:changed', () => this.applyChatUiClass());
     }
     
     toggleDrawer() {
@@ -144,6 +150,13 @@ class LayoutController {
         // If viewport becomes >= 1024px, ensure drawer is closed
         if (this.mediaQuery.matches) {
             this.closeDrawer();
+        }
+    }
+
+    applyChatUiClass() {
+        const body = document.body;
+        if (!body.classList.contains('chat-ui')) {
+            body.classList.add('chat-ui');
         }
     }
     

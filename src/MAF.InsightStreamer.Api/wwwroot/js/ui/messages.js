@@ -284,8 +284,8 @@ window.Messages = (function() {
         messageElement.appendChild(timeElement);
         
         // Add toolbar that appears on hover/tap
-        const toolbar = document.createElement('div');
-        toolbar.className = 'absolute top-0 right-0 mt-2 mr-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-md shadow-sm p-1';
+    const toolbar = document.createElement('div');
+    toolbar.className = 'chat-toolbar absolute top-0 right-0 mt-2 mr-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity';
         
         // Copy button
         const copyBtn = document.createElement('button');
