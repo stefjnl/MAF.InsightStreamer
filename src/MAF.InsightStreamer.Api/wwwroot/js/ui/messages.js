@@ -1,6 +1,6 @@
 // Lightweight message renderer module attached to window
 // Internal parser is authoritative; no external Markdown libs required.
-window.Messages = (function() {
+window.Messages = (function () {
     // Utility function to format timestamp
     function formatTimestamp(ts) {
         const date = typeof ts === 'number' ? new Date(ts) : new Date(ts);
@@ -52,10 +52,10 @@ window.Messages = (function() {
         let inCodeBlock = false;
         let inList = false;
         let inBlockquote = false;
-        
+
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
-            
+
             // Check for code block start/end
             if (/^```/.test(line)) {
                 if (inCodeBlock) {
@@ -75,12 +75,12 @@ window.Messages = (function() {
                 }
                 continue;
             }
-            
+
             if (inCodeBlock) {
                 result += line + '\n';
                 continue;
             }
-            
+
             // Check for blockquote
             if (/^> /.test(line)) {
                 if (!inBlockquote) {
@@ -97,7 +97,7 @@ window.Messages = (function() {
                 result += '</blockquote>\n';
                 inBlockquote = false;
             }
-            
+
             // Check for list item
             if (/^[-*] /.test(line)) {
                 if (!inList) {
@@ -117,7 +117,7 @@ window.Messages = (function() {
                 result += '</ul>\n';
                 inList = false;
             }
-            
+
             // Handle paragraphs and inline markdown
             if (line.trim() === '') {
                 if (inList) {
@@ -126,15 +126,15 @@ window.Messages = (function() {
                 }
                 continue;
             }
-            
+
             if (inList) {
                 result += '</ul>\n';
                 inList = false;
             }
-            
+
             result += '<p>' + parseInlineMarkdown(line) + '</p>\n';
         }
-        
+
         // Close any open blocks
         if (inCodeBlock) {
             result += '</pre></div>\n';
@@ -145,7 +145,7 @@ window.Messages = (function() {
         if (inBlockquote) {
             result += '</blockquote>\n';
         }
-        
+
         return result;
     }
 
@@ -153,17 +153,17 @@ window.Messages = (function() {
     function parseInlineMarkdown(text) {
         // Handle inline code
         text = text.replace(/`([^`]+)`/g, '<code class="bg-neutral-100 dark:bg-neutral-800 rounded px-1.5 py-0.5 font-mono text-sm">$1</code>');
-        
+
         // Handle links
         text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-600 hover:underline" target="_blank">$1</a>');
-        
+
         return text;
     }
 
     // IntersectionObserver for deferred syntax highlighting
     let codeBlockObserver = null;
     let pendingIdleCallback = null;
-    
+
     function initCodeBlockObserver() {
         if (!codeBlockObserver && typeof IntersectionObserver !== 'undefined') {
             codeBlockObserver = new IntersectionObserver((entries) => {
@@ -185,7 +185,7 @@ window.Messages = (function() {
             });
         }
     }
-    
+
     // Function to process remaining visible code blocks when browser is idle
     function processIdleHighlights() {
         if (typeof requestIdleCallback !== 'undefined') {
@@ -195,7 +195,7 @@ window.Messages = (function() {
                     // Check if the element is visible in the viewport
                     const rect = codeBlock.getBoundingClientRect();
                     const isVisible = rect.top < window.innerHeight && rect.bottom >= 0;
-                    
+
                     if (isVisible && typeof Prism !== 'undefined') {
                         Prism.highlightElement(codeBlock.querySelector('code'));
                         codeBlock.removeAttribute('data-needs-highlight');
@@ -212,7 +212,7 @@ window.Messages = (function() {
                     // Check if the element is visible in the viewport
                     const rect = codeBlock.getBoundingClientRect();
                     const isVisible = rect.top < window.innerHeight && rect.bottom >= 0;
-                    
+
                     if (isVisible && typeof Prism !== 'undefined') {
                         Prism.highlightElement(codeBlock.querySelector('code'));
                         codeBlock.removeAttribute('data-needs-highlight');
@@ -222,13 +222,13 @@ window.Messages = (function() {
             }, 1);
         }
     }
-    
+
     // Render a single message
     function renderMessage(message) {
         const messageElement = document.createElement('div');
         messageElement.setAttribute('role', 'article');
         messageElement.className = 'group relative';
-        
+
         // Set aria-label based on role and model if available
         if (message.role === 'assistant') {
             const modelInfo = message.model ? ` (Model: ${message.model})` : '';
@@ -236,9 +236,9 @@ window.Messages = (function() {
         } else if (message.role === 'user') {
             messageElement.setAttribute('aria-label', 'User message');
         }
-        
+
         messageElement.setAttribute('data-id', message.id);
-        
+
         // Determine classes based on role
         let bubbleClasses;
         let messageContainerClasses;
@@ -254,39 +254,39 @@ window.Messages = (function() {
             messageContainerClasses = 'flex justify-start';
             bubbleClasses = 'surface rounded-[var(--radius-lg)] text-base max-w-[75ch]';
         }
-        
+
         // Format timestamp
         const timestamp = formatTimestamp(message.timestamp);
-        
+
         // Create message container with alignment
         const messageContainer = document.createElement('div');
         messageContainer.className = messageContainerClasses;
-        
+
         // Create bubble content
         const bubbleElement = document.createElement('div');
         bubbleElement.className = bubbleClasses + ' py-[var(--bubble-py)] px-[var(--bubble-px)] border hairline';
         if (message.role === 'assistant') {
             bubbleElement.setAttribute('aria-busy', 'false');
         }
-        
+
         // Parse and set content
         bubbleElement.innerHTML = parseMarkdown(message.content);
-        
+
         // Add timestamp that appears on hover
         const timeElement = document.createElement('time');
         timeElement.className = 'absolute right-0 -top-5 text-xs text-neutral-500 dark:text-neutral-400 opacity-0 group-hover:opacity-100 transition-opacity';
         timeElement.title = timestamp.iso;
         timeElement.textContent = timestamp.display;
         timeElement.setAttribute('aria-hidden', 'true');
-        
+
         messageElement.appendChild(messageContainer);
         messageContainer.appendChild(bubbleElement);
         messageElement.appendChild(timeElement);
-        
+
         // Add toolbar that appears on hover/tap
-    const toolbar = document.createElement('div');
-    toolbar.className = 'chat-toolbar absolute top-0 right-0 mt-2 mr-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity';
-        
+        const toolbar = document.createElement('div');
+        toolbar.className = 'chat-toolbar absolute top-0 right-0 mt-2 mr-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity';
+
         // Copy button
         const copyBtn = document.createElement('button');
         copyBtn.id = `msg-copy-${message.id}`;
@@ -294,15 +294,15 @@ window.Messages = (function() {
         copyBtn.setAttribute('aria-label', 'Copy message');
         copyBtn.title = 'Copy message';
         copyBtn.innerHTML = '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>';
-        copyBtn.addEventListener('click', async function() {
+        copyBtn.addEventListener('click', async function () {
             const success = await copyToClipboard(message.content);
             if (success && window.ToastUtil) {
                 window.ToastUtil.show('Message copied to clipboard', 'success', 2000);
             }
         });
-        
+
         toolbar.appendChild(copyBtn);
-        
+
         // Add Regenerate button for assistant messages only
         if (message.role === 'assistant') {
             const regenerateBtn = document.createElement('button');
@@ -310,7 +310,7 @@ window.Messages = (function() {
             regenerateBtn.setAttribute('aria-label', 'Regenerate message');
             regenerateBtn.title = 'Regenerate message';
             regenerateBtn.innerHTML = '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>';
-            regenerateBtn.addEventListener('click', function() {
+            regenerateBtn.addEventListener('click', function () {
                 window.dispatchEvent(new CustomEvent('request-regenerate', {
                     detail: {
                         messageId: message.id,
@@ -319,17 +319,17 @@ window.Messages = (function() {
                     }
                 }));
             });
-            
+
             toolbar.appendChild(regenerateBtn);
         }
-        
+
         // Delete button
         const deleteBtn = document.createElement('button');
         deleteBtn.className = 'text-xs p-1.5 rounded hover:bg-neutral-100 dark:hover:bg-neutral-700 transition';
         deleteBtn.setAttribute('aria-label', 'Delete message');
         deleteBtn.title = 'Delete message';
         deleteBtn.innerHTML = '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>';
-        deleteBtn.addEventListener('click', function() {
+        deleteBtn.addEventListener('click', function () {
             deleteMessage(message.id);
             // Check if db.js has a delete function
             if (window.DB && typeof window.DB.deleteMessage === 'function') {
@@ -338,16 +338,16 @@ window.Messages = (function() {
             // Otherwise, just dispatch event for later handling
             window.dispatchEvent(new CustomEvent('ui:delete-message', { detail: { id: message.id } }));
         });
-        
+
         toolbar.appendChild(deleteBtn);
         messageElement.appendChild(toolbar);
-        
+
         // Handle code copy buttons (need to attach after element is created)
         setTimeout(() => {
             const copyButtons = messageElement.querySelectorAll('.code-copy-btn');
             copyButtons.forEach(btn => {
                 btn.setAttribute('aria-label', 'Copy code block');
-                btn.addEventListener('click', async function() {
+                btn.addEventListener('click', async function () {
                     const codeElement = this.closest('.flex').nextElementSibling.querySelector('code');
                     if (codeElement) {
                         const success = await copyToClipboard(codeElement.textContent);
@@ -357,13 +357,13 @@ window.Messages = (function() {
                     }
                 });
             });
-            
+
             // Set aria-hidden on language badges
             const langBadges = messageElement.querySelectorAll('.text-\[11px\].px-2.py-0\.5.rounded');
             langBadges.forEach(badge => {
                 badge.setAttribute('aria-hidden', 'true');
             });
-            
+
             // Set up deferred syntax highlighting for code blocks
             const codeBlocks = messageElement.querySelectorAll('pre code');
             codeBlocks.forEach(codeElement => {
@@ -372,21 +372,21 @@ window.Messages = (function() {
                     // Mark code block as needing highlight
                     preElement.setAttribute('data-needs-highlight', 'true');
                     preElement.classList.add('language-unhighlighted');
-                    
+
                     // Initialize observer if not already done
                     initCodeBlockObserver();
-                    
+
                     // Observe the code block
                     codeBlockObserver.observe(preElement);
                 }
             });
-            
+
             // Schedule idle callback to process any remaining visible code blocks
             setTimeout(() => {
                 processIdleHighlights();
             }, 100);
         }, 0);
-        
+
         return messageElement;
     }
 
@@ -399,18 +399,18 @@ window.Messages = (function() {
             if (welcomeMessage) {
                 welcomeMessage.remove();
             }
-            
+
             // Hide empty prompts grid if it exists
             if (window.Errors && typeof window.Errors.hideEmptyPrompts === 'function') {
                 window.Errors.hideEmptyPrompts();
             }
-            
+
             const messageElement = renderMessage(message);
             chatLog.appendChild(messageElement);
-            
+
             // Scroll to bottom
             chatLog.parentElement.scrollTop = chatLog.parentElement.scrollHeight;
-            
+
             // Dispatch event for new message
             window.dispatchEvent(new CustomEvent('ui:new-message'));
         }
@@ -425,26 +425,26 @@ window.Messages = (function() {
             if (bubbleElement) {
                 // Save any existing metadata elements before updating content
                 const existingMetadata = bubbleElement.querySelector('.token-latency');
-                
+
                 // Update content
                 bubbleElement.innerHTML = parseMarkdown(newContent);
-                
+
                 // Reattach any existing metadata if present
                 if (existingMetadata) {
                     bubbleElement.appendChild(existingMetadata);
                 }
-                
+
                 // Re-highlight syntax
                 if (typeof Prism !== 'undefined') {
                     requestAnimationFrame(() => {
                         Prism.highlightAllUnder(bubbleElement);
                     });
                 }
-                
+
                 // Reattach code copy button listeners
                 const copyButtons = bubbleElement.querySelectorAll('.code-copy-btn');
                 copyButtons.forEach(btn => {
-                    btn.addEventListener('click', async function() {
+                    btn.addEventListener('click', async function () {
                         const codeElement = this.closest('.flex').nextElementSibling.querySelector('code');
                         if (codeElement) {
                             const success = await copyToClipboard(codeElement.textContent);
@@ -476,7 +476,7 @@ window.Messages = (function() {
                 content: `This is a demo user message ${i + 1}.`,
                 timestamp: Date.now() - (count - i) * 60000
             });
-            
+
             // Add assistant message with code
             appendMessage({
                 id: `demo-assistant-${i}`,
@@ -488,7 +488,7 @@ window.Messages = (function() {
     }
 
     // Listen for ui:open-thread events
-    window.addEventListener('ui:open-thread', function(event) {
+    window.addEventListener('ui:open-thread', function (event) {
         // Clear chat log
         const chatLog = document.getElementById('chatLog');
         if (chatLog) {
@@ -522,7 +522,7 @@ window.Messages = (function() {
     function loadMoreMessages() {
         const pageSize = 100;
         const newStart = Math.max(0, messageWindowStart - pageSize);
-        
+
         if (newStart === messageWindowStart) {
             // Already at the beginning
             if (loadMoreButton) {
@@ -531,19 +531,19 @@ window.Messages = (function() {
             }
             return;
         }
-        
+
         // Preserve scroll position
         const chatLog = document.getElementById('chatLog');
         if (!chatLog) return;
-        
+
         const oldScrollTop = chatLog.parentElement.scrollTop;
         const oldScrollHeight = chatLog.parentElement.scrollHeight;
-        
+
         messageWindowStart = newStart;
         messageWindowEnd = Math.min(messageWindowStart + MAX_VISIBLE_MESSAGES, messagesStore.length);
-        
+
         renderMessageWindow();
-        
+
         // Restore scroll position relative to the bottom
         const newScrollHeight = chatLog.parentElement.scrollHeight;
         chatLog.parentElement.scrollTop = oldScrollTop + (newScrollHeight - oldScrollHeight);
@@ -553,10 +553,10 @@ window.Messages = (function() {
     function renderMessageWindow() {
         const chatLog = document.getElementById('chatLog');
         if (!chatLog) return;
-        
+
         // Clear the chat log
         chatLog.innerHTML = '';
-        
+
         // Add "Load older messages" button if there are older messages
         if (messageWindowStart > 0 && messagesStore.length > 0) {
             if (!loadMoreButton) {
@@ -564,7 +564,7 @@ window.Messages = (function() {
             }
             chatLog.appendChild(loadMoreButton);
         }
-        
+
         // Render visible messages in the current window
         for (let i = messageWindowStart; i < messageWindowEnd; i++) {
             if (i >= 0 && i < messagesStore.length) {
@@ -572,7 +572,7 @@ window.Messages = (function() {
                 chatLog.appendChild(messageElement);
             }
         }
-        
+
         // Remove welcome message if it exists
         const welcomeMessage = chatLog.querySelector('#welcomeMessage');
         if (welcomeMessage) {
@@ -586,7 +586,7 @@ window.Messages = (function() {
         messageWindowStart = Math.max(0, messagesStore.length - MAX_VISIBLE_MESSAGES);
         messageWindowEnd = messagesStore.length;
         renderMessageWindow();
-        
+
         // If messages exist, hide empty prompts
         if (messagesArray.length > 0) {
             if (window.Errors && typeof window.Errors.hideEmptyPrompts === 'function') {
@@ -599,10 +599,10 @@ window.Messages = (function() {
     function appendVirtualMessage(message) {
         // Add to store
         messagesStore.push(message);
-        
+
         const chatLog = document.getElementById('chatLog');
         if (!chatLog) return;
-        
+
         // If we're at the end of the current window, append the message
         if (messageWindowEnd === messagesStore.length) {
             // If window is full, shift it forward
@@ -610,14 +610,14 @@ window.Messages = (function() {
                 messageWindowStart++;
                 messageWindowEnd++;
             }
-            
+
             // Append the new message element
             const messageElement = renderMessage(message);
             chatLog.appendChild(messageElement);
-            
+
             // Scroll to bottom
             chatLog.parentElement.scrollTop = chatLog.parentElement.scrollHeight;
-            
+
             // Dispatch event for new message
             window.dispatchEvent(new CustomEvent('ui:new-message'));
         } else {
@@ -632,7 +632,7 @@ window.Messages = (function() {
         const messageIndex = messagesStore.findIndex(msg => msg.id === id);
         if (messageIndex !== -1) {
             messagesStore[messageIndex].content = newContent;
-            
+
             // Check if the message is in the current window
             if (messageIndex >= messageWindowStart && messageIndex < messageWindowEnd) {
                 const messageElement = document.querySelector(`[data-id="${id}"]`);
@@ -642,15 +642,15 @@ window.Messages = (function() {
                     if (bubbleElement) {
                         // Save any existing metadata elements before updating content
                         const existingMetadata = bubbleElement.querySelector('.token-latency');
-                        
+
                         // Update content
                         bubbleElement.innerHTML = parseMarkdown(newContent);
-                        
+
                         // Reattach any existing metadata if present
                         if (existingMetadata) {
                             bubbleElement.appendChild(existingMetadata);
                         }
-                        
+
                         // Re-highlight syntax if needed
                         const codeBlocks = bubbleElement.querySelectorAll('pre code');
                         codeBlocks.forEach(codeElement => {
@@ -659,19 +659,19 @@ window.Messages = (function() {
                                 // Mark code block as needing highlight
                                 preElement.setAttribute('data-needs-highlight', 'true');
                                 preElement.classList.add('language-unhighlighted');
-                                
+
                                 // Initialize observer if not already done
                                 initCodeBlockObserver();
-                                
+
                                 // Observe the code block
                                 codeBlockObserver.observe(preElement);
                             }
                         });
-                        
+
                         // Reattach code copy button listeners
                         const copyButtons = bubbleElement.querySelectorAll('.code-copy-btn');
                         copyButtons.forEach(btn => {
-                            btn.addEventListener('click', async function() {
+                            btn.addEventListener('click', async function () {
                                 const codeElement = this.closest('.flex').nextElementSibling.querySelector('code');
                                 if (codeElement) {
                                     const success = await copyToClipboard(codeElement.textContent);
@@ -692,7 +692,7 @@ window.Messages = (function() {
         // Remove from store
         const originalLength = messagesStore.length;
         messagesStore = messagesStore.filter(msg => msg.id !== id);
-        
+
         // If the message was in the current window, re-render
         if (originalLength !== messagesStore.length) {
             // Adjust window indices if necessary
@@ -702,7 +702,7 @@ window.Messages = (function() {
             } else if (messageWindowEnd > messagesStore.length) {
                 messageWindowEnd = messagesStore.length;
             }
-            
+
             renderMessageWindow();
         }
     }

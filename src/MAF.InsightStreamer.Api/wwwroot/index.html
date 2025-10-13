@@ -190,213 +190,219 @@
 
         <!-- Main Grid Layout -->
         <main class="chat-shell">
-        <!-- Sidebar -->
-        <aside role="complementary"
-            class="sidebar-responsive h-[calc(100vh-64px)] sticky top-[64px] border-r border-neutral-200 dark:border-neutral-800 overflow-y-auto modern-scrollbar lg:static lg:block lg:h-auto lg:border-r lg:!translate-x-0">
-            <div class="p-4">
-                <h2 class="font-medium text-gray-700 dark:text-gray-300 mb-2">Conversations</h2>
-                <label for="convFilter" class="sr-only">Search conversations</label>
-                <div class="relative mb-2">
-                    <input id="convFilter" type="search" placeholder="Search conversations..."
-                        class="w-full px-3 py-2 surface hairline rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                        role="combobox" aria-expanded="false" aria-controls="convListContainer" aria-autocomplete="list"
-                        aria-label="Search conversations">
-                    <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                        </svg>
+            <!-- Sidebar -->
+            <aside role="complementary"
+                class="sidebar-responsive h-[calc(100vh-64px)] sticky top-[64px] border-r border-neutral-200 dark:border-neutral-800 overflow-y-auto modern-scrollbar lg:static lg:block lg:h-auto lg:border-r lg:!translate-x-0">
+                <div class="p-4">
+                    <h2 class="font-medium text-gray-700 dark:text-gray-300 mb-2">Conversations</h2>
+                    <label for="convFilter" class="sr-only">Search conversations</label>
+                    <div class="relative mb-2">
+                        <input id="convFilter" type="search" placeholder="Search conversations..."
+                            class="w-full px-3 py-2 surface hairline rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                            role="combobox" aria-expanded="false" aria-controls="convListContainer"
+                            aria-autocomplete="list" aria-label="Search conversations">
+                        <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                    <div id="convListContainer" role="listbox" aria-label="Conversations"
+                        class="overflow-y-auto modern-scrollbar" tabindex="0" style="max-height: calc(100vh - 150px);">
                     </div>
                 </div>
-                <div id="convListContainer" role="listbox" aria-label="Conversations"
-                    class="overflow-y-auto modern-scrollbar" tabindex="0" style="max-height: calc(100vh - 150px);">
-                </div>
-            </div>
-        </aside>
+            </aside>
 
-        <!-- Main Chat Column -->
-        <div role="main" class="content-area flex flex-col min-h-[calc(100vh-64px)]">
-            <div class="flex-1">
-                <div class="max-w-[1024px] mx-auto px-[var(--gutter-x)] py-6">
-                    <!-- Tab Navigation -->
-                    <nav class="card-flat mb-8" aria-label="Content type selection">
-                        <div class="flex" role="tablist">
-                            <button id="youtubeTab" type="button"
-                                class="flex-1 py-3 px-4 rounded-lg font-medium transition button-primary" role="tab"
-                                aria-selected="true" aria-controls="youtubeSection" tabindex="0">
-                                YouTube Analysis
-                            </button>
-                            <button id="documentTab" type="button"
-                                class="flex-1 py-3 px-4 rounded-lg font-medium transition button-secondary" role="tab"
-                                aria-selected="false" aria-controls="documentSection" tabindex="-1">
-                                Document Analysis
-                            </button>
-                        </div>
-                    </nav>
-
-                    <!-- YouTube Input Section -->
-                    <section id="youtubeSection" class="section-container mb-8 card-elevated p-4" role="tabpanel"
-                        aria-labelledby="youtubeTab">
-                        <div class="mb-4">
-                            <label for="videoUrl" class="form-label">YouTube Video URL</label>
-                            <div class="flex gap-3">
-                                <input type="text" id="videoUrl" placeholder="https://www.youtube.com/watch?v=..."
-                                    class="input-modern flex-1 px-4 py-3" aria-label="YouTube video URL" />
-                                <button id="analyzeVideoBtn" type="button" class="button-primary px-6 py-3"
-                                    aria-label="Analyze YouTube video">
-                                    Analyze
+            <!-- Main Chat Column -->
+            <div role="main" class="content-area flex flex-col min-h-[calc(100vh-64px)]">
+                <div class="flex-1">
+                    <div class="max-w-[1024px] mx-auto px-[var(--gutter-x)] py-6">
+                        <!-- Tab Navigation -->
+                        <nav class="card-flat mb-8" aria-label="Content type selection">
+                            <div class="flex" role="tablist">
+                                <button id="youtubeTab" type="button"
+                                    class="flex-1 py-3 px-4 rounded-lg font-medium transition button-primary" role="tab"
+                                    aria-selected="true" aria-controls="youtubeSection" tabindex="0">
+                                    YouTube Analysis
+                                </button>
+                                <button id="documentTab" type="button"
+                                    class="flex-1 py-3 px-4 rounded-lg font-medium transition button-secondary"
+                                    role="tab" aria-selected="false" aria-controls="documentSection" tabindex="-1">
+                                    Document Analysis
                                 </button>
                             </div>
-                    </section>
+                        </nav>
 
-                    <!-- Document Upload Section -->
-                    <section id="documentSection" class="hidden section-container mb-8 card-elevated p-4"
-                        role="tabpanel" aria-labelledby="documentTab">
-                        <div class="mb-4">
-                            <label for="documentFile" class="form-label">Upload Document (PDF, Word, Markdown, or Plain
-                                Text)</label>
-                            <div class="relative">
-                                <input type="file" id="documentFile" accept=".pdf,.docx,.md,.txt"
-                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                                    aria-label="Upload document file" />
-                                <p class="text-xs text-gray-500 mt-2">Maximum file size: 10MB. Supported formats: PDF,
-                                    DOCX, MD, TXT</p>
-                            </div>
-                        </div>
-                        <div class="flex gap-4">
-                            <button id="analyzeDocumentBtn" type="button" class="button-primary px-6 py-3"
-                                aria-label="Analyze uploaded document">
-                                Analyze Document
-                            </button>
-                        </div>
-                    </section>
-
-                    <!-- Loading Spinner -->
-                    <div id="loading" class="hidden text-center py-8">
-                        <div class="loading-spinner mx-auto"></div>
-                        <p class="text-gray-600 mt-4" id="loadingText">Analyzing content...</p>
-                    </div>
-
-                    <!-- Error Message -->
-                    <div id="error" class="hidden alert-banner mb-8">
-                        <p class="text-red-800" id="errorMessage"></p>
-                    </div>
-
-                    <!-- Results Section -->
-                    <div id="results" class="hidden section-container card-elevated p-4">
-                        <h2 id="resultsTitle" class="section-title">Analysis Results</h2>
-
-                        <!-- Document Metadata -->
-                        <div id="documentMetadata" class="hidden mb-6 p-4 bg-gray-50 rounded-lg">
-                            <h3 class="text-lg font-semibold text-gray-800 mb-2">Document Information</h3>
-                            <div class="grid grid-cols-2 gap-4 text-sm">
-                                <div>
-                                    <span class="font-medium text-gray-600">File Name:</span>
-                                    <span id="metaFileName" class="text-gray-800 ml-2"></span>
+                        <!-- YouTube Input Section -->
+                        <section id="youtubeSection" class="section-container mb-8 card-elevated p-4" role="tabpanel"
+                            aria-labelledby="youtubeTab">
+                            <div class="mb-4">
+                                <label for="videoUrl" class="form-label">YouTube Video URL</label>
+                                <div class="flex gap-3">
+                                    <input type="text" id="videoUrl" placeholder="https://www.youtube.com/watch?v=..."
+                                        class="input-modern flex-1 px-4 py-3" aria-label="YouTube video URL" />
+                                    <button id="analyzeVideoBtn" type="button" class="button-primary px-6 py-3"
+                                        aria-label="Analyze YouTube video">
+                                        Analyze
+                                    </button>
                                 </div>
-                                <div>
-                                    <span class="font-medium text-gray-600">File Type:</span>
-                                    <span id="metaFileType" class="text-gray-800 ml-2"></span>
-                                </div>
-                                <div>
-                                    <span class="font-medium text-gray-600">File Size:</span>
-                                    <span id="metaFileSize" class="text-gray-800 ml-2"></span>
-                                </div>
-                                <div>
-                                    <span class="font-medium text-gray-600">Page Count:</span>
-                                    <span id="metaPageCount" class="text-gray-800 ml-2"></span>
+                        </section>
+
+                        <!-- Document Upload Section -->
+                        <section id="documentSection" class="hidden section-container mb-8 card-elevated p-4"
+                            role="tabpanel" aria-labelledby="documentTab">
+                            <div class="mb-4">
+                                <label for="documentFile" class="form-label">Upload Document (PDF, Word, Markdown, or
+                                    Plain
+                                    Text)</label>
+                                <div class="relative">
+                                    <input type="file" id="documentFile" accept=".pdf,.docx,.md,.txt"
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                                        aria-label="Upload document file" />
+                                    <p class="text-xs text-gray-500 mt-2">Maximum file size: 10MB. Supported formats:
+                                        PDF,
+                                        DOCX, MD, TXT</p>
                                 </div>
                             </div>
-                        </div>
-
-                        <!-- Analysis Content -->
-                        <div id="resultsContent" class="text-gray-700"></div>
-
-                        <!-- Q&A Section (Hidden by default) -->
-                        <div id="qaSection" class="hidden mt-6 pt-6 border-t border-gray-200">
-                            <div class="flex justify-between items-center mb-4">
-                                <h3 class="text-xl font-semibold text-gray-800">Ask Questions About This Document</h3>
-                                <button id="newConversationBtn" type="button" class="button-secondary text-sm">
-                                    Start New Conversation
+                            <div class="flex gap-4">
+                                <button id="analyzeDocumentBtn" type="button" class="button-primary px-6 py-3"
+                                    aria-label="Analyze uploaded document">
+                                    Analyze Document
                                 </button>
                             </div>
+                        </section>
 
-                            <!-- Chat Container -->
-                            <div id="chatContainer" class="max-w-[1024px] mx-auto px-[var(--gutter-x)]">
-                                <!-- Messages Container -->
-                                <div class="max-w-[1024px] mx-auto px-[var(--gutter-x)] py-6">
-                                    <section id="chatLog" role="log" aria-live="polite" tabindex="-1" class="space-y-4">
-                                        <!-- Messages will be inserted here -->
-                                        <div id="welcomeMessage" class="text-center text-gray-500 py-8">
-                                            Ask a question about the document to get started
-                                        </div>
-                                        <!-- Empty Prompts Grid -->
-                                        <div id="emptyPromptsGrid"
-                                            class="hidden grid grid-cols-1 gap-3 max-w-2xl mx-auto">
-                                            <div class="p-4 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-750 cursor-pointer transition text-center chip"
-                                                data-prompt="Explain quantum computing in simple terms" role="button"
-                                                tabindex="0"
-                                                aria-label="Prompt: Explain quantum computing in simple terms">
-                                                <span class="font-medium">Explain quantum computing in simple
-                                                    terms</span>
-                                            </div>
-                                            <div class="p-4 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-750 cursor-pointer transition text-center chip"
-                                                data-prompt="What are the key benefits of renewable energy?"
-                                                role="button" tabindex="0"
-                                                aria-label="Prompt: What are the key benefits of renewable energy?">
-                                                <span class="font-medium">What are the key benefits of renewable
-                                                    energy?</span>
-                                            </div>
-                                            <div class="p-4 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-750 cursor-pointer transition text-center chip"
-                                                data-prompt="How does photosynthesis work in plants?" role="button"
-                                                tabindex="0"
-                                                aria-label="Prompt: How does photosynthesis work in plants?">
-                                                <span class="font-medium">How does photosynthesis work in plants?</span>
-                                            </div>
-                                            <div class="p-4 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-750 cursor-pointer transition text-center chip"
-                                                data-prompt="Summarize the main points of this document" role="button"
-                                                tabindex="0"
-                                                aria-label="Prompt: Summarize the main points of this document">
-                                                <span class="font-medium">Summarize the main points of this
-                                                    document</span>
-                                            </div>
-                                        </div>
-                                    </section>
-                                </div>
+                        <!-- Loading Spinner -->
+                        <div id="loading" class="hidden text-center py-8">
+                            <div class="loading-spinner mx-auto"></div>
+                            <p class="text-gray-600 mt-4" id="loadingText">Analyzing content...</p>
+                        </div>
 
-                                <!-- Input Container -->
-                                <div class="p-3 border-t border-gray-300 bg-white rounded-b-lg">
-                                    <div class="flex gap-2">
-                                        <textarea id="questionInput" placeholder="Type your question here..."
-                                            class="textarea-modern flex-1 px-3 py-2" rows="1"></textarea>
-                                        <button id="sendButton" type="button" class="button-primary px-4 py-2"
-                                            aria-label="Send message">
-                                            Send
-                                        </button>
+                        <!-- Error Message -->
+                        <div id="error" class="hidden alert-banner mb-8">
+                            <p class="text-red-800" id="errorMessage"></p>
+                        </div>
+
+                        <!-- Results Section -->
+                        <div id="results" class="hidden section-container card-elevated p-4">
+                            <h2 id="resultsTitle" class="section-title">Analysis Results</h2>
+
+                            <!-- Document Metadata -->
+                            <div id="documentMetadata" class="hidden mb-6 p-4 bg-gray-50 rounded-lg">
+                                <h3 class="text-lg font-semibold text-gray-800 mb-2">Document Information</h3>
+                                <div class="grid grid-cols-2 gap-4 text-sm">
+                                    <div>
+                                        <span class="font-medium text-gray-600">File Name:</span>
+                                        <span id="metaFileName" class="text-gray-800 ml-2"></span>
+                                    </div>
+                                    <div>
+                                        <span class="font-medium text-gray-600">File Type:</span>
+                                        <span id="metaFileType" class="text-gray-800 ml-2"></span>
+                                    </div>
+                                    <div>
+                                        <span class="font-medium text-gray-600">File Size:</span>
+                                        <span id="metaFileSize" class="text-gray-800 ml-2"></span>
+                                    </div>
+                                    <div>
+                                        <span class="font-medium text-gray-600">Page Count:</span>
+                                        <span id="metaPageCount" class="text-gray-800 ml-2"></span>
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- Typing Indicator (Hidden by default) -->
-                            <div id="typingIndicator" class="hidden flex items-center text-gray-500 mb-2">
-                                <div class="loading-spinner w-4 h-4 border-2 mr-2"></div>
-                                <span>AI is thinking...</span>
-                            </div>
+                            <!-- Analysis Content -->
+                            <div id="resultsContent" class="text-gray-700"></div>
 
-                            <!-- Error Message for Q&A (Hidden by default) -->
-                            <div id="qaError" class="hidden alert-banner mb-4">
-                                <p class="text-red-800 text-sm" id="qaErrorMessage"></p>
+                            <!-- Q&A Section (Hidden by default) -->
+                            <div id="qaSection" class="hidden mt-6 pt-6 border-t border-gray-200">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h3 class="text-xl font-semibold text-gray-800">Ask Questions About This Document
+                                    </h3>
+                                    <button id="newConversationBtn" type="button" class="button-secondary text-sm">
+                                        Start New Conversation
+                                    </button>
+                                </div>
+
+                                <!-- Chat Container -->
+                                <div id="chatContainer" class="max-w-[1024px] mx-auto px-[var(--gutter-x)]">
+                                    <!-- Messages Container -->
+                                    <div class="max-w-[1024px] mx-auto px-[var(--gutter-x)] py-6">
+                                        <section id="chatLog" role="log" aria-live="polite" tabindex="-1"
+                                            class="space-y-4">
+                                            <!-- Messages will be inserted here -->
+                                            <div id="welcomeMessage" class="text-center text-gray-500 py-8">
+                                                Ask a question about the document to get started
+                                            </div>
+                                            <!-- Empty Prompts Grid -->
+                                            <div id="emptyPromptsGrid"
+                                                class="hidden grid grid-cols-1 gap-3 max-w-2xl mx-auto">
+                                                <div class="p-4 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-750 cursor-pointer transition text-center chip"
+                                                    data-prompt="Explain quantum computing in simple terms"
+                                                    role="button" tabindex="0"
+                                                    aria-label="Prompt: Explain quantum computing in simple terms">
+                                                    <span class="font-medium">Explain quantum computing in simple
+                                                        terms</span>
+                                                </div>
+                                                <div class="p-4 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-750 cursor-pointer transition text-center chip"
+                                                    data-prompt="What are the key benefits of renewable energy?"
+                                                    role="button" tabindex="0"
+                                                    aria-label="Prompt: What are the key benefits of renewable energy?">
+                                                    <span class="font-medium">What are the key benefits of renewable
+                                                        energy?</span>
+                                                </div>
+                                                <div class="p-4 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-750 cursor-pointer transition text-center chip"
+                                                    data-prompt="How does photosynthesis work in plants?" role="button"
+                                                    tabindex="0"
+                                                    aria-label="Prompt: How does photosynthesis work in plants?">
+                                                    <span class="font-medium">How does photosynthesis work in
+                                                        plants?</span>
+                                                </div>
+                                                <div class="p-4 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-750 cursor-pointer transition text-center chip"
+                                                    data-prompt="Summarize the main points of this document"
+                                                    role="button" tabindex="0"
+                                                    aria-label="Prompt: Summarize the main points of this document">
+                                                    <span class="font-medium">Summarize the main points of this
+                                                        document</span>
+                                                </div>
+                                            </div>
+                                        </section>
+                                    </div>
+
+                                    <!-- Input Container -->
+                                    <div class="p-3 border-t border-gray-300 bg-white rounded-b-lg">
+                                        <div class="flex gap-2">
+                                            <textarea id="questionInput" placeholder="Type your question here..."
+                                                class="textarea-modern flex-1 px-3 py-2" rows="1"></textarea>
+                                            <button id="sendButton" type="button" class="button-primary px-4 py-2"
+                                                aria-label="Send message">
+                                                Send
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Typing Indicator (Hidden by default) -->
+                                <div id="typingIndicator" class="hidden flex items-center text-gray-500 mb-2">
+                                    <div class="loading-spinner w-4 h-4 border-2 mr-2"></div>
+                                    <span>AI is thinking...</span>
+                                </div>
+
+                                <!-- Error Message for Q&A (Hidden by default) -->
+                                <div id="qaError" class="hidden alert-banner mb-4">
+                                    <p class="text-red-800 text-sm" id="qaErrorMessage"></p>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
         </main>
     </div>
 
     <!-- Sticky Bottom Composer -->
-    <div class="chat-composer sticky bottom-0 backdrop-blur border-t bg-white/80 dark:bg-neutral-900/80 hairline surface-alt z-20">
+    <div
+        class="chat-composer sticky bottom-0 backdrop-blur border-t bg-white/80 dark:bg-neutral-900/80 hairline surface-alt z-20">
         <div class="container mx-auto max-w-[1024px] px-[var(--gutter-x)] py-3">
             <!-- Quick chips and mode toggles row -->
             <div class="flex items-center gap-2 mb-2">
