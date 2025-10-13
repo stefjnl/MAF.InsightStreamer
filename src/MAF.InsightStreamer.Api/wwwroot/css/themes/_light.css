@@ -1,0 +1,13 @@
+.light-theme {
+    --color-surface: #ffffff;
+    --color-surface-light: #f8fafc;
+    --color-surface-dark: #f1f5f9;
+    --color-surface-darker: #e2e8f0;
+    --color-surface-darkest: #cbd5e1;
+    --color-text-primary: #1e293b;
+    --color-text-secondary: #64748b;
+    --color-text-muted: #94a3b8;
+    --color-border: #e2e8f0;
+    --color-border-light: #f1f5f9;
+    --color-border-dark: #cbd5e1;
+}

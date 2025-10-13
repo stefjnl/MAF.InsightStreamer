@@ -5,24 +5,42 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="color-scheme" content="light dark">
     <title>MAF.InsightStreamer</title>
-    <link rel="stylesheet" href="/styling/tokens.css">
+    <link rel="stylesheet" href="/css/app.css">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#6366f1',
+                        secondary: '#8b5cf6',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+                        mono: ['Consolas', 'Monaco', 'Courier New', 'monospace']
+                    },
+                    boxShadow: {
+                        'modern-sm': 'var(--shadow-sm)',
+                        'modern-md': 'var(--shadow-md)',
+                    },
+                    borderRadius: {
+                        'modern-sm': 'var(--radius-sm)',
+                        'modern-md': 'var(--radius-md)',
+                    },
+                    spacing: {
+                        'xs': 'var(--space-xs)',
+                        'sm': 'var(--space-sm)',
+                    }
+                }
+            }
+        }
+    </script>
     <!-- Preline UI intentionally deferred to avoid build pipeline dependencies -->
     <script src="js/ui/toast.js" defer></script>
     <script src="js/model-selector.js" defer></script>
     <script src="/js/ui/conversations.js" defer></script>
-    <style>
-        /* CSS for token/latency metadata */
-        .token-latency {
-            display: block;
-            text-align: right;
-            margin-top: 0.25rem;
-            font-size: var(--text-sm);
-            color: var(--text-muted);
-        }
-    </style>
 </head>
-<body class="min-h-screen bg-neutral-50 dark:bg-neutral-950">
+<body class="light-theme">
     <!-- Skip to content link for accessibility -->
     <a href="#chatLog" class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:bg-white dark:focus:bg-neutral-900 focus:text-neutral-900 dark:focus:text-neutral-100 focus:px-3 focus:py-2 focus:rounded-md">Skip to chat</a>
     
